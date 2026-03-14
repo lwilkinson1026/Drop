@@ -8,6 +8,8 @@ import React, {
   useState,
 } from "react";
 
+import { DROP_LOCATIONS, DropLocation } from "@/constants/dropLocations";
+
 export type UserRole = "maker" | "buyer";
 
 export interface User {
@@ -56,16 +58,23 @@ export interface Transaction {
   type: "purchase" | "sale";
 }
 
+export interface ManagedDropLocation extends DropLocation {
+  builtIn?: boolean;
+}
+
 interface AppContextValue {
   user: User | null;
   listings: ListingItem[];
   transactions: Transaction[];
+  dropLocations: ManagedDropLocation[];
   isLoading: boolean;
   setUser: (u: User | null) => void;
   addListing: (l: Omit<ListingItem, "id" | "timestamp">) => Promise<void>;
   removeListing: (id: string) => Promise<void>;
   claimListing: (listing: ListingItem) => Promise<boolean>;
   refreshListings: () => Promise<void>;
+  addDropLocation: (loc: Omit<DropLocation, "id">) => Promise<void>;
+  removeDropLocation: (id: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -74,9 +83,20 @@ const STORAGE_KEYS = {
   user: "harvestswap_user",
   listings: "harvestswap_listings",
   transactions: "harvestswap_transactions",
+  customLocations: "harvestswap_custom_locations",
 };
 
-const LYNCH_LANE = { lat: 46.6021, lng: -120.5059, address: "791 Lynch Lane, Yakima WA", dropLocationId: "lynch-lane-yakima" };
+const LYNCH_LANE = {
+  lat: 46.6021,
+  lng: -120.5059,
+  address: "791 Lynch Lane, Yakima WA",
+  dropLocationId: "lynch-lane-yakima",
+};
+
+const BUILT_IN_LOCATIONS: ManagedDropLocation[] = DROP_LOCATIONS.map((l) => ({
+  ...l,
+  builtIn: true,
+}));
 
 const DEMO_LISTINGS: ListingItem[] = [
   {
@@ -145,6 +165,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUserState] = useState<User | null>(null);
   const [listings, setListings] = useState<ListingItem[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [customLocations, setCustomLocations] = useState<ManagedDropLocation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -153,10 +174,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const loadData = async () => {
     try {
-      const [rawUser, rawListings, rawTx] = await Promise.all([
+      const [rawUser, rawListings, rawTx, rawLocs] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.user),
         AsyncStorage.getItem(STORAGE_KEYS.listings),
         AsyncStorage.getItem(STORAGE_KEYS.transactions),
+        AsyncStorage.getItem(STORAGE_KEYS.customLocations),
       ]);
 
       if (rawUser) setUserState(JSON.parse(rawUser));
@@ -169,12 +191,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setListings(merged);
 
       if (rawTx) setTransactions(JSON.parse(rawTx));
+      if (rawLocs) setCustomLocations(JSON.parse(rawLocs));
     } catch (e) {
       setListings(DEMO_LISTINGS);
     } finally {
       setIsLoading(false);
     }
   };
+
+  const dropLocations: ManagedDropLocation[] = useMemo(
+    () => [...BUILT_IN_LOCATIONS, ...customLocations],
+    [customLocations]
+  );
 
   const setUser = useCallback(async (u: User | null) => {
     setUserState(u);
@@ -258,19 +286,45 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await loadData();
   }, []);
 
+  const addDropLocation = useCallback(
+    async (loc: Omit<DropLocation, "id">) => {
+      const newLoc: ManagedDropLocation = {
+        ...loc,
+        id: "loc_" + Date.now().toString() + Math.random().toString(36).substr(2, 6),
+        builtIn: false,
+      };
+      const updated = [...customLocations, newLoc];
+      setCustomLocations(updated);
+      await AsyncStorage.setItem(STORAGE_KEYS.customLocations, JSON.stringify(updated));
+    },
+    [customLocations]
+  );
+
+  const removeDropLocation = useCallback(
+    async (id: string) => {
+      const updated = customLocations.filter((l) => l.id !== id);
+      setCustomLocations(updated);
+      await AsyncStorage.setItem(STORAGE_KEYS.customLocations, JSON.stringify(updated));
+    },
+    [customLocations]
+  );
+
   const value = useMemo(
     () => ({
       user,
       listings,
       transactions,
+      dropLocations,
       isLoading,
       setUser,
       addListing,
       removeListing,
       claimListing,
       refreshListings,
+      addDropLocation,
+      removeDropLocation,
     }),
-    [user, listings, transactions, isLoading, setUser, addListing, removeListing, claimListing, refreshListings]
+    [user, listings, transactions, dropLocations, isLoading, setUser, addListing, removeListing, claimListing, refreshListings, addDropLocation, removeDropLocation]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

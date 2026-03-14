@@ -1,0 +1,277 @@
+import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
+import React from "react";
+import {
+  Alert,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import Colors from "@/constants/colors";
+import { useApp } from "@/context/AppContext";
+import { useAuth } from "@/context/AuthContext";
+
+const C = Colors.light;
+
+export default function AdminScreen() {
+  const insets = useSafeAreaInsets();
+  const { dropLocations, removeDropLocation, listings } = useApp();
+  const { authUser } = useAuth();
+  const topPad = Platform.OS === "web" ? 67 : insets.top;
+  const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
+
+  const handleRemove = (id: string, name: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    Alert.alert(
+      "Remove location?",
+      `Are you sure you want to remove "${name}"? Listings pointing to this box will still appear but the location won't be selectable for new posts.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Remove", style: "destructive", onPress: () => removeDropLocation(id) },
+      ]
+    );
+  };
+
+  const listingCountForLocation = (locationId: string) =>
+    listings.filter((l) => l.boxLocation.dropLocationId === locationId && l.available).length;
+
+  return (
+    <View style={[styles.container, { paddingBottom: bottomPad }]}>
+      <LinearGradient
+        colors={[C.accent, C.accentMid]}
+        style={[styles.header, { paddingTop: topPad + 12 }]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Feather name="arrow-left" size={20} color="rgba(255,255,255,0.8)" />
+        </Pressable>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerTitle}>Admin Panel</Text>
+          <Text style={styles.headerSub}>{authUser?.email}</Text>
+        </View>
+        <View style={styles.adminBadge}>
+          <Feather name="shield" size={12} color={C.tint} />
+          <Text style={styles.adminBadgeText}>Admin</Text>
+        </View>
+      </LinearGradient>
+
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[styles.content, { paddingBottom: 100 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Drop Box Locations</Text>
+            <Text style={styles.sectionCount}>{dropLocations.length} location{dropLocations.length !== 1 ? "s" : ""}</Text>
+          </View>
+
+          {dropLocations.map((loc) => {
+            const count = listingCountForLocation(loc.id);
+            const isBuiltIn = loc.builtIn ?? false;
+            return (
+              <View key={loc.id} style={styles.locCard}>
+                <View style={styles.locCardHeader}>
+                  <View style={styles.locIconWrap}>
+                    <MaterialCommunityIcons name="package-variant" size={20} color={C.tint} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.locNameRow}>
+                      <Text style={styles.locName}>{loc.name}</Text>
+                      {isBuiltIn && (
+                        <View style={styles.builtInBadge}>
+                          <Text style={styles.builtInText}>Built-in</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.locAddr}>{loc.address}, {loc.city} {loc.state}</Text>
+                  </View>
+                  {!isBuiltIn && (
+                    <Pressable
+                      onPress={() => handleRemove(loc.id, loc.name)}
+                      style={({ pressed }) => [styles.removeBtn, { opacity: pressed ? 0.7 : 1 }]}
+                    >
+                      <Feather name="trash-2" size={16} color={C.error} />
+                    </Pressable>
+                  )}
+                </View>
+                <View style={styles.locMeta}>
+                  <View style={styles.locStat}>
+                    <Ionicons name="cube-outline" size={13} color={C.textSecondary} />
+                    <Text style={styles.locStatText}>{count} active listing{count !== 1 ? "s" : ""}</Text>
+                  </View>
+                  <View style={styles.locStat}>
+                    <Feather name="map-pin" size={13} color={C.textSecondary} />
+                    <Text style={styles.locStatText}>{loc.lat.toFixed(4)}, {loc.lng.toFixed(4)}</Text>
+                  </View>
+                </View>
+                {loc.description ? (
+                  <Text style={styles.locDesc}>{loc.description}</Text>
+                ) : null}
+              </View>
+            );
+          })}
+        </View>
+
+        <View style={styles.statsSection}>
+          <Text style={styles.sectionTitle}>Quick Stats</Text>
+          <View style={styles.statsRow}>
+            {[
+              { label: "Total Listings", value: listings.length.toString(), icon: "layers" as const },
+              { label: "Active", value: listings.filter((l) => l.available).length.toString(), icon: "check-circle" as const },
+            ].map((s) => (
+              <View key={s.label} style={styles.statCard}>
+                <Feather name={s.icon} size={20} color={C.tint} />
+                <Text style={styles.statValue}>{s.value}</Text>
+                <Text style={styles.statLabel}>{s.label}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      </ScrollView>
+
+      <View style={[styles.fab]}>
+        <Pressable
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push("/admin/add-location"); }}
+          style={({ pressed }) => [{ opacity: pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+        >
+          <LinearGradient
+            colors={[C.tintLight, C.tint]}
+            style={styles.fabBtn}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Feather name="plus" size={22} color="#fff" />
+            <Text style={styles.fabText}>Add Drop Location</Text>
+          </LinearGradient>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.background },
+  header: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitle: { fontFamily: "Inter_700Bold", fontSize: 20, color: "#fff" },
+  headerSub: { fontFamily: "Inter_400Regular", fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 2 },
+  adminBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(212,130,42,0.2)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(212,130,42,0.35)",
+  },
+  adminBadgeText: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: C.tint },
+  content: { padding: 20, gap: 24 },
+  section: { gap: 12 },
+  sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  sectionTitle: { fontFamily: "Inter_700Bold", fontSize: 17, color: C.text },
+  sectionCount: { fontFamily: "Inter_400Regular", fontSize: 13, color: C.textSecondary },
+  locCard: {
+    backgroundColor: C.surface,
+    borderRadius: 16,
+    padding: 16,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: C.cardBorder,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  locCardHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  locIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: C.tint + "14",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  locNameRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 2 },
+  locName: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: C.text },
+  locAddr: { fontFamily: "Inter_400Regular", fontSize: 13, color: C.textSecondary },
+  builtInBadge: {
+    backgroundColor: C.accentMid + "18",
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  builtInText: { fontFamily: "Inter_500Medium", fontSize: 10, color: C.accentMid },
+  removeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: C.error + "10",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  locMeta: { flexDirection: "row", gap: 16, flexWrap: "wrap" },
+  locStat: { flexDirection: "row", alignItems: "center", gap: 5 },
+  locStatText: { fontFamily: "Inter_400Regular", fontSize: 12, color: C.textSecondary },
+  locDesc: { fontFamily: "Inter_400Regular", fontSize: 12, color: C.textSecondary, lineHeight: 18 },
+  statsSection: { gap: 12 },
+  statsRow: { flexDirection: "row", gap: 12 },
+  statCard: {
+    flex: 1,
+    backgroundColor: C.surface,
+    borderRadius: 14,
+    padding: 16,
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderColor: C.cardBorder,
+  },
+  statValue: { fontFamily: "Inter_700Bold", fontSize: 28, color: C.text },
+  statLabel: { fontFamily: "Inter_400Regular", fontSize: 12, color: C.textSecondary, textAlign: "center" },
+  fab: {
+    position: "absolute",
+    bottom: 100,
+    left: 20,
+    right: 20,
+  },
+  fabBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 17,
+    borderRadius: 16,
+    shadowColor: C.tint,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  fabText: { fontFamily: "Inter_700Bold", fontSize: 16, color: "#fff" },
+});

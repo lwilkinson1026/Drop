@@ -19,7 +19,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
-import { DROP_LOCATIONS, getLocationsForCity } from "@/constants/dropLocations";
 import { ListingItem, useApp } from "@/context/AppContext";
 
 const C = Colors.light;
@@ -28,7 +27,7 @@ const CATEGORIES: ListingItem["category"][] = ["vegetables", "fruits", "herbs", 
 
 export default function PostScreen() {
   const insets = useSafeAreaInsets();
-  const { user, addListing } = useApp();
+  const { user, addListing, dropLocations } = useApp();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [quantity, setQuantity] = useState("1");
@@ -37,7 +36,7 @@ export default function PostScreen() {
   const [category, setCategory] = useState<ListingItem["category"]>("vegetables");
   const [photoUri, setPhotoUri] = useState<string | null>(null);
 
-  const availableLocations = user?.city ? getLocationsForCity(user.city) : DROP_LOCATIONS;
+  const availableLocations = dropLocations.length > 0 ? dropLocations : [];
   const defaultLoc = user?.defaultDropLocationId
     ? availableLocations.find((l) => l.id === user.defaultDropLocationId) ?? availableLocations[0]
     : availableLocations[0];

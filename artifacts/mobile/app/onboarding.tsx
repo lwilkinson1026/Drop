@@ -19,7 +19,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
-import { DROP_LOCATIONS, DropLocation } from "@/constants/dropLocations";
+import { DropLocation } from "@/constants/dropLocations";
 import { User, useApp } from "@/context/AppContext";
 
 const { width } = Dimensions.get("window");
@@ -86,7 +86,7 @@ const BUYER_SLIDES = [
 
 export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
-  const { setUser } = useApp();
+  const { setUser, dropLocations } = useApp();
 
   const [step, setStep] = useState<Step>("welcome");
   const [name, setName] = useState("");
@@ -235,6 +235,7 @@ export default function OnboardingScreen() {
             <MakerDropLocationStep
               selected={selectedDropLocation}
               onSelect={setSelectedDropLocation}
+              locations={dropLocations}
             />
           )}
           {step === "all-done" && <AllDoneStep role={role!} name={name} />}
@@ -497,9 +498,11 @@ function MakerPhotoStep({
 function MakerDropLocationStep({
   selected,
   onSelect,
+  locations,
 }: {
   selected: DropLocation | null;
   onSelect: (loc: DropLocation) => void;
+  locations: DropLocation[];
 }) {
   return (
     <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
@@ -509,7 +512,7 @@ function MakerDropLocationStep({
         </View>
         <Text style={styles.stepTitle}>Choose your drop box</Text>
         <Text style={styles.stepSubtitle}>Select the community swap box where you'll drop off your produce.</Text>
-        {DROP_LOCATIONS.map((loc) => (
+        {locations.map((loc) => (
           <Pressable
             key={loc.id}
             onPress={() => { Haptics.selectionAsync(); onSelect(loc); }}

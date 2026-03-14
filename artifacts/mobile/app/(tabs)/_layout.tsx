@@ -9,6 +9,7 @@ import { Platform, StyleSheet, View, useColorScheme } from "react-native";
 
 import Colors from "@/constants/colors";
 import { useApp } from "@/context/AppContext";
+import { useAuth } from "@/context/AuthContext";
 
 const C = Colors.light;
 
@@ -133,8 +134,15 @@ function ClassicTabLayout() {
 
 export default function TabLayout() {
   const { user, isLoading } = useApp();
+  const { authUser, isAuthLoading, isFirebaseReady } = useAuth();
 
-  if (!isLoading && !user) {
+  if (isLoading || (isFirebaseReady && isAuthLoading)) return null;
+
+  if (isFirebaseReady && !authUser) {
+    return <Redirect href="/sign-in" />;
+  }
+
+  if (!user) {
     return <Redirect href="/onboarding" />;
   }
 
