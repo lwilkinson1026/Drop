@@ -29,8 +29,8 @@ const CATEGORY_COLORS: Record<ListingItem["category"], string> = {
 };
 
 const INITIAL_REGION = {
-  latitude: 37.7749,
-  longitude: -122.4194,
+  latitude: 46.6021,
+  longitude: -120.5059,
   latitudeDelta: 0.08,
   longitudeDelta: 0.08,
 };

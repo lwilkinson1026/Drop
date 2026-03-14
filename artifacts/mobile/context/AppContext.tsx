@@ -16,6 +16,11 @@ export interface User {
   role: UserRole;
   creditBalance: number;
   avatar?: string;
+  city?: string;
+  state?: string;
+  makerBio?: string;
+  makerPhotoUri?: string;
+  defaultDropLocationId?: string;
   location?: { lat: number; lng: number };
 }
 
@@ -30,6 +35,7 @@ export interface ListingItem {
     lat: number;
     lng: number;
     address: string;
+    dropLocationId?: string;
   };
   quantity: number;
   unit: string;
@@ -70,6 +76,8 @@ const STORAGE_KEYS = {
   transactions: "harvestswap_transactions",
 };
 
+const LYNCH_LANE = { lat: 46.6021, lng: -120.5059, address: "791 Lynch Lane, Yakima WA", dropLocationId: "lynch-lane-yakima" };
+
 const DEMO_LISTINGS: ListingItem[] = [
   {
     id: "demo1",
@@ -78,7 +86,7 @@ const DEMO_LISTINGS: ListingItem[] = [
     title: "Fresh Heirloom Tomatoes",
     description: "Sun-ripened Cherokee Purple and Brandywine tomatoes. Picked this morning.",
     photoUri: null,
-    boxLocation: { lat: 37.7749, lng: -122.4194, address: "Old Mill Road Box #3" },
+    boxLocation: { ...LYNCH_LANE },
     quantity: 8,
     unit: "lbs",
     creditCost: 4,
@@ -93,7 +101,7 @@ const DEMO_LISTINGS: ListingItem[] = [
     title: "Duck Eggs (dozen)",
     description: "Free-range Khaki Campbell duck eggs. Rich golden yolks.",
     photoUri: null,
-    boxLocation: { lat: 37.78, lng: -122.41, address: "Meadow Lane Box #1" },
+    boxLocation: { ...LYNCH_LANE },
     quantity: 2,
     unit: "dozen",
     creditCost: 6,
@@ -108,7 +116,7 @@ const DEMO_LISTINGS: ListingItem[] = [
     title: "Fresh Basil Bunches",
     description: "Sweet Genovese basil, just cut. Perfect for pesto.",
     photoUri: null,
-    boxLocation: { lat: 37.77, lng: -122.43, address: "Creek Side Box #7" },
+    boxLocation: { ...LYNCH_LANE },
     quantity: 12,
     unit: "bunches",
     creditCost: 2,
@@ -123,7 +131,7 @@ const DEMO_LISTINGS: ListingItem[] = [
     title: "Seckel Pears",
     description: "Small but intensely sweet. Great for snacking or preserves.",
     photoUri: null,
-    boxLocation: { lat: 37.76, lng: -122.44, address: "Orchard Gate Box #2" },
+    boxLocation: { ...LYNCH_LANE },
     quantity: 5,
     unit: "lbs",
     creditCost: 3,
@@ -152,7 +160,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ]);
 
       if (rawUser) setUserState(JSON.parse(rawUser));
-      
+
       const stored = rawListings ? JSON.parse(rawListings) : [];
       const merged = [
         ...DEMO_LISTINGS,

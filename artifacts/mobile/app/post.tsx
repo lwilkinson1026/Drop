@@ -19,19 +19,12 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
+import { DROP_LOCATIONS, getLocationsForCity } from "@/constants/dropLocations";
 import { ListingItem, useApp } from "@/context/AppContext";
 
 const C = Colors.light;
 
 const CATEGORIES: ListingItem["category"][] = ["vegetables", "fruits", "herbs", "eggs", "dairy", "other"];
-
-const DEMO_LOCATIONS = [
-  { lat: 37.7749, lng: -122.4194, address: "Old Mill Road Box #3" },
-  { lat: 37.78, lng: -122.41, address: "Meadow Lane Box #1" },
-  { lat: 37.77, lng: -122.43, address: "Creek Side Box #7" },
-  { lat: 37.76, lng: -122.44, address: "Orchard Gate Box #2" },
-  { lat: 37.79, lng: -122.42, address: "Hillside Farm Box #5" },
-];
 
 export default function PostScreen() {
   const insets = useSafeAreaInsets();
@@ -43,7 +36,12 @@ export default function PostScreen() {
   const [creditCost, setCreditCost] = useState("3");
   const [category, setCategory] = useState<ListingItem["category"]>("vegetables");
   const [photoUri, setPhotoUri] = useState<string | null>(null);
-  const [selectedLocation, setSelectedLocation] = useState(DEMO_LOCATIONS[0]);
+
+  const availableLocations = user?.city ? getLocationsForCity(user.city) : DROP_LOCATIONS;
+  const defaultLoc = user?.defaultDropLocationId
+    ? availableLocations.find((l) => l.id === user.defaultDropLocationId) ?? availableLocations[0]
+    : availableLocations[0];
+  const [selectedLocation, setSelectedLocation] = useState(defaultLoc);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
@@ -81,7 +79,12 @@ export default function PostScreen() {
       title: title.trim(),
       description: description.trim(),
       photoUri,
-      boxLocation: selectedLocation,
+      boxLocation: {
+        lat: selectedLocation.lat,
+        lng: selectedLocation.lng,
+        address: `${selectedLocation.address}, ${selectedLocation.city} ${selectedLocation.state}`,
+        dropLocationId: selectedLocation.id,
+      },
       quantity: parseInt(quantity) || 1,
       unit: unit.trim() || "lbs",
       creditCost: parseInt(creditCost) || 3,
@@ -214,21 +217,24 @@ export default function PostScreen() {
 
           <View style={styles.field}>
             <Text style={styles.label}>Box Location</Text>
-            {DEMO_LOCATIONS.map((loc) => (
+            {availableLocations.map((loc) => (
               <Pressable
-                key={loc.address}
+                key={loc.id}
                 onPress={() => { Haptics.selectionAsync(); setSelectedLocation(loc); }}
-                style={[styles.locationOption, selectedLocation.address === loc.address && styles.locationOptionActive]}
+                style={[styles.locationOption, selectedLocation?.id === loc.id && styles.locationOptionActive]}
               >
                 <Feather
                   name="map-pin"
                   size={14}
-                  color={selectedLocation.address === loc.address ? C.tint : C.textSecondary}
+                  color={selectedLocation?.id === loc.id ? C.tint : C.textSecondary}
                 />
-                <Text style={[styles.locationText, selectedLocation.address === loc.address && styles.locationTextActive]}>
-                  {loc.address}
-                </Text>
-                {selectedLocation.address === loc.address && (
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.locationText, selectedLocation?.id === loc.id && styles.locationTextActive]}>
+                    {loc.name}
+                  </Text>
+                  <Text style={styles.locationSubtext}>{loc.address}, {loc.city} {loc.state}</Text>
+                </View>
+                {selectedLocation?.id === loc.id && (
                   <Feather name="check" size={14} color={C.tint} />
                 )}
               </Pressable>
@@ -338,8 +344,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   locationOptionActive: { borderColor: C.tint, backgroundColor: C.tint + "0C" },
-  locationText: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 14, color: C.textSecondary },
-  locationTextActive: { color: C.text, fontFamily: "Inter_500Medium" },
+  locationText: { fontFamily: "Inter_500Medium", fontSize: 14, color: C.textSecondary },
+  locationTextActive: { color: C.text },
+  locationSubtext: { fontFamily: "Inter_400Regular", fontSize: 12, color: C.textMuted, marginTop: 1 },
   submitSection: {
     paddingHorizontal: 20,
     paddingTop: 12,
