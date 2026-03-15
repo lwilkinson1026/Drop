@@ -1,8 +1,8 @@
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
-import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useRef, useState } from "react";
 import {
@@ -18,12 +18,20 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import Colors from "@/constants/colors";
 import { DropLocation } from "@/constants/dropLocations";
 import { User, useApp } from "@/context/AppContext";
 
 const { width } = Dimensions.get("window");
-const C = Colors.light;
+
+const BG = "#0C1A0B";
+const AMBER = "#D4822A";
+const AMBER_LIGHT = "#E8A855";
+const CREAM = "#F7F2EA";
+const WHITE = "#FFFFFF";
+const DIM = "rgba(255,255,255,0.42)";
+const DIM2 = "rgba(255,255,255,0.22)";
+const DIM3 = "rgba(255,255,255,0.08)";
+const BORDER = "rgba(255,255,255,0.12)";
 
 type Step =
   | "welcome"
@@ -36,27 +44,39 @@ type Step =
   | "maker-drop-location"
   | "all-done";
 
+const STEP_ORDER: Step[] = [
+  "welcome",
+  "name",
+  "role",
+  "how-it-works",
+  "location",
+  "maker-profile",
+  "maker-photo",
+  "maker-drop-location",
+  "all-done",
+];
+
 const MAKER_SLIDES = [
   {
     icon: "camera-outline" as const,
     iconLib: "Ionicons",
-    color: "#C8892A",
+    num: "01",
     title: "Snap & Post",
     body: "Got extra tomatoes? Surplus eggs? Take a photo, write a quick note, and post your item. It takes under a minute.",
   },
   {
     icon: "map-marker-check-outline" as const,
     iconLib: "MaterialCommunityIcons",
-    color: C.tint,
-    title: "Drop it at a Swap Box",
-    body: "Choose a community swap box near you. Drop off your produce and others in the neighborhood can claim it using credits.",
+    num: "02",
+    title: "Drop at a Swap Box",
+    body: "Choose a community swap box near you. Drop off your produce and neighbors can claim it with credits.",
   },
   {
     icon: "leaf-outline" as const,
     iconLib: "Ionicons",
-    color: "#6B9E55",
+    num: "03",
     title: "Earn & Swap",
-    body: "Every item you drop earns you credits. Spend them on fresh food from your neighbors. It's a living, breathing local economy.",
+    body: "Every item you drop earns you credits. Spend them on fresh food from your neighbors — a living local economy.",
   },
 ];
 
@@ -64,23 +84,23 @@ const BUYER_SLIDES = [
   {
     icon: "map-outline" as const,
     iconLib: "Ionicons",
-    color: C.tint,
+    num: "01",
     title: "Find What's Fresh",
-    body: "Browse the map or list view to see what local makers have posted. New items show up throughout the day — check back often.",
+    body: "Browse the map or list to see what local makers have posted. New items appear throughout the day.",
   },
   {
     icon: "storefront-outline" as const,
     iconLib: "Ionicons",
-    color: "#C8892A",
+    num: "02",
     title: "Claim with Credits",
-    body: "Spot something you want? Claim it with your credits. You start with 20 free credits, and earn more by trading with the community.",
+    body: "Spot something you want? Claim it with credits. You start with 20 free, and earn more by trading with the community.",
   },
   {
     icon: "qr-code-outline" as const,
     iconLib: "Ionicons",
-    color: "#6B9E55",
+    num: "03",
     title: "Scan & Pick Up",
-    body: "Head to the swap box, tap Unlock, and scan your QR code to open the box. Fresh local food — no checkout, no packaging.",
+    body: "Head to the swap box, scan the QR code to unlock it. Fresh local food — no checkout, no packaging.",
   },
 ];
 
@@ -101,11 +121,11 @@ export default function OnboardingScreen() {
 
   const transition = (next: () => void) => {
     Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 0, duration: 180, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: -24, duration: 180, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 0, duration: 160, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: -20, duration: 160, useNativeDriver: true }),
     ]).start(() => {
       next();
-      slideAnim.setValue(24);
+      slideAnim.setValue(20);
       Animated.parallel([
         Animated.timing(fadeAnim, { toValue: 1, duration: 220, useNativeDriver: true }),
         Animated.timing(slideAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
@@ -116,9 +136,12 @@ export default function OnboardingScreen() {
   const slides = role === "maker" ? MAKER_SLIDES : BUYER_SLIDES;
   const isLastSlide = howItWorksSlide === slides.length - 1;
 
+  const stepIndex = STEP_ORDER.indexOf(step);
+  const totalSteps = role === "maker" ? STEP_ORDER.length : STEP_ORDER.length - 3;
+  const progressPct = Math.max(0, Math.min(1, stepIndex / (STEP_ORDER.length - 1)));
+
   const handleContinue = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
     if (step === "welcome") {
       transition(() => setStep("name"));
     } else if (step === "name" && name.trim()) {
@@ -200,108 +223,129 @@ export default function OnboardingScreen() {
   };
 
   const topPad = Platform.OS === "web" ? 60 : insets.top;
+  const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
   const showBack = step !== "welcome" && step !== "all-done";
 
+  const btnLabel =
+    step === "welcome" ? "Get started" :
+    step === "how-it-works" ? (isLastSlide ? "Let's go" : "Next") :
+    step === "all-done" ? "Enter Drop" :
+    step === "maker-drop-location" ? "Confirm location" :
+    "Continue";
+
   return (
-    <LinearGradient colors={[C.accent, C.accentMid, "#1A3518"]} style={styles.container}>
-      {showBack && (
-        <Pressable
-          onPress={handleBack}
-          style={[styles.backBtn, { top: topPad + 8 }]}
-          hitSlop={12}
-        >
-          <Feather name="arrow-left" size={20} color="rgba(255,255,255,0.75)" />
-        </Pressable>
+    <View style={[styles.container, { backgroundColor: BG }]}>
+      {/* Top bar */}
+      <View style={[styles.topBar, { paddingTop: topPad + 12 }]}>
+        {showBack ? (
+          <Pressable onPress={handleBack} hitSlop={16} style={styles.backBtn}>
+            <Feather name="arrow-left" size={22} color={WHITE} />
+          </Pressable>
+        ) : (
+          <View style={styles.backBtn} />
+        )}
+
+        {step !== "welcome" && step !== "all-done" && (
+          <Text style={styles.stepCounter}>
+            {step === "how-it-works" ? `${howItWorksSlide + 1} / ${slides.length}` : ""}
+          </Text>
+        )}
+
+        <View style={styles.topBarRight} />
+      </View>
+
+      {/* Progress bar */}
+      {step !== "welcome" && step !== "all-done" && (
+        <View style={styles.progressTrack}>
+          <Animated.View style={[styles.progressFill, { width: `${progressPct * 100}%` }]} />
+        </View>
       )}
 
-      <View style={[styles.inner, { paddingTop: topPad + 52, paddingBottom: insets.bottom + 32 }]}>
-        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], flex: 1 }}>
-          {step === "welcome" && <WelcomeStep />}
-          {step === "name" && <NameStep name={name} onChange={setName} />}
-          {step === "role" && <RoleStep role={role} onSelect={setRole} />}
-          {step === "how-it-works" && (
-            <HowItWorksStep
-              slides={slides}
-              currentSlide={howItWorksSlide}
-              role={role!}
-            />
-          )}
-          {step === "location" && <LocationStep />}
-          {step === "maker-profile" && <MakerProfileStep bio={makerBio} onChangeBio={setMakerBio} name={name} />}
-          {step === "maker-photo" && (
-            <MakerPhotoStep photoUri={makerPhotoUri} onPick={pickPhoto} onSkip={() => transition(() => setStep("maker-drop-location"))} />
-          )}
-          {step === "maker-drop-location" && (
-            <MakerDropLocationStep
-              selected={selectedDropLocation}
-              onSelect={setSelectedDropLocation}
-              locations={dropLocations}
-            />
-          )}
-          {step === "all-done" && <AllDoneStep role={role!} name={name} />}
-        </Animated.View>
+      {/* Content */}
+      <Animated.View
+        style={[
+          styles.content,
+          { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+        ]}
+      >
+        {step === "welcome" && <WelcomeStep topPad={topPad} />}
+        {step === "name" && <NameStep name={name} onChange={setName} />}
+        {step === "role" && <RoleStep role={role} onSelect={setRole} />}
+        {step === "how-it-works" && (
+          <HowItWorksStep slides={slides} currentSlide={howItWorksSlide} role={role!} />
+        )}
+        {step === "location" && <LocationStep />}
+        {step === "maker-profile" && (
+          <MakerProfileStep bio={makerBio} onChangeBio={setMakerBio} name={name} />
+        )}
+        {step === "maker-photo" && (
+          <MakerPhotoStep
+            photoUri={makerPhotoUri}
+            onPick={pickPhoto}
+            onSkip={() => transition(() => setStep("maker-drop-location"))}
+            onContinue={() => transition(() => setStep("maker-drop-location"))}
+          />
+        )}
+        {step === "maker-drop-location" && (
+          <MakerDropLocationStep
+            selected={selectedDropLocation}
+            onSelect={setSelectedDropLocation}
+            locations={dropLocations}
+          />
+        )}
+        {step === "all-done" && <AllDoneStep role={role!} name={name} />}
+      </Animated.View>
 
-        {step !== "maker-photo" && (
+      {/* CTA */}
+      {step !== "maker-photo" && (
+        <View style={[styles.footer, { paddingBottom: bottomPad + 24 }]}>
           <Pressable
             onPress={handleContinue}
             disabled={!canContinue()}
             style={({ pressed }) => [
-              styles.btn,
-              { opacity: pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] },
-              !canContinue() && styles.btnDisabled,
+              styles.cta,
+              !canContinue() && styles.ctaDisabled,
+              { opacity: pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
             ]}
           >
-            <LinearGradient
-              colors={[C.tintLight, C.tint]}
-              style={styles.btnGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Text style={styles.btnText}>
-                {step === "welcome" ? "Get started" :
-                 step === "how-it-works" ? (isLastSlide ? "Let's go" : "Next") :
-                 step === "all-done" ? "Enter Drop" :
-                 step === "maker-drop-location" ? "Confirm my location" :
-                 "Continue"}
-              </Text>
-              <Feather name="arrow-right" size={18} color="#fff" />
-            </LinearGradient>
+            <Text style={[styles.ctaText, !canContinue() && styles.ctaTextDisabled]}>
+              {btnLabel}
+            </Text>
+            <Feather name="arrow-right" size={18} color={canContinue() ? BG : DIM} />
           </Pressable>
-        )}
-
-        {step === "how-it-works" && (
-          <View style={styles.dotsRow}>
-            {slides.map((_, i) => (
-              <View key={i} style={[styles.dot, i === howItWorksSlide && styles.dotActive]} />
-            ))}
-          </View>
-        )}
-      </View>
-    </LinearGradient>
+        </View>
+      )}
+    </View>
   );
 }
 
-function WelcomeStep() {
+function WelcomeStep({ topPad }: { topPad: number }) {
   return (
-    <View style={styles.stepContainer}>
-      <View style={styles.logoCircle}>
-        <Ionicons name="leaf" size={52} color={C.tint} />
+    <View style={styles.welcomeWrap}>
+      <View style={styles.welcomeTop}>
+        <Text style={styles.welcomeEyebrow}>Live Kindred</Text>
+        <Text style={styles.welcomeWordmark}>Drop.</Text>
+        <Text style={styles.welcomeSub}>
+          A rural food-swap network.{"\n"}Fresh from the farm, straight to your hands.
+        </Text>
       </View>
-      <Text style={styles.appName}>Drop</Text>
-      <Text style={styles.tagline}>A rural food-swap network. Fresh from the farm, straight to your hands.</Text>
-      <View style={styles.featureList}>
+
+      <View style={styles.welcomeFeatures}>
         {[
-          { icon: "camera" as const, text: "Post surplus produce with photos" },
-          { icon: "map-pin" as const, text: "Find community swap boxes nearby" },
-          { icon: "zap" as const, text: "Unlock boxes with a QR scan" },
-        ].map((f) => (
-          <View key={f.text} style={styles.featureRow}>
-            <View style={styles.featureIcon}>
-              <Feather name={f.icon} size={16} color={C.tint} />
-            </View>
-            <Text style={styles.featureText}>{f.text}</Text>
+          { icon: "camera" as const, label: "Post surplus produce with photos" },
+          { icon: "map-pin" as const, label: "Find community swap boxes nearby" },
+          { icon: "zap" as const, label: "Unlock boxes with a QR scan" },
+        ].map((f, i) => (
+          <View key={i} style={styles.featureRow}>
+            <View style={styles.featureDot} />
+            <Text style={styles.featureText}>{f.label}</Text>
           </View>
         ))}
+      </View>
+
+      <View style={styles.welcomeTagline}>
+        <View style={styles.amberLine} />
+        <Text style={styles.welcomeCity}>Yakima, WA · Est. 2025</Text>
       </View>
     </View>
   );
@@ -309,59 +353,67 @@ function WelcomeStep() {
 
 function NameStep({ name, onChange }: { name: string; onChange: (v: string) => void }) {
   return (
-    <View style={styles.stepContainer}>
-      <View style={styles.stepIconCircle}>
-        <Ionicons name="person-outline" size={30} color="rgba(255,255,255,0.8)" />
+    <View style={styles.stepWrap}>
+      <Text style={styles.stepEyebrow}>Let's get started</Text>
+      <Text style={styles.stepHeadline}>What's your{"\n"}name?</Text>
+      <Text style={styles.stepBody}>
+        Your neighbors will know you by this in the marketplace.
+      </Text>
+      <View style={styles.underlineField}>
+        <TextInput
+          style={styles.underlineInput}
+          value={name}
+          onChangeText={onChange}
+          placeholder="e.g. Rose Valley Farm"
+          placeholderTextColor={DIM2}
+          autoFocus
+          returnKeyType="done"
+          maxLength={40}
+          selectionColor={AMBER}
+        />
+        <View style={[styles.underlineLine, name.trim().length > 0 && styles.underlineLineActive]} />
       </View>
-      <Text style={styles.stepTitle}>What's your name?</Text>
-      <Text style={styles.stepSubtitle}>Your neighbors will know you by this in the marketplace.</Text>
-      <TextInput
-        style={styles.input}
-        value={name}
-        onChangeText={onChange}
-        placeholder="e.g. Rose Valley Farm"
-        placeholderTextColor="rgba(255,255,255,0.35)"
-        autoFocus
-        returnKeyType="done"
-        maxLength={40}
-      />
     </View>
   );
 }
 
 function RoleStep({ role, onSelect }: { role: "maker" | "buyer" | null; onSelect: (r: "maker" | "buyer") => void }) {
   return (
-    <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>How will you join?</Text>
-      <Text style={styles.stepSubtitle}>You can always switch later in your profile.</Text>
-      <View style={styles.roleRow}>
-        {(["maker", "buyer"] as const).map((r) => (
-          <Pressable
-            key={r}
-            onPress={() => { Haptics.selectionAsync(); onSelect(r); }}
-            style={({ pressed }) => [
-              styles.roleCard,
-              role === r && styles.roleCardSelected,
-              { opacity: pressed ? 0.9 : 1 },
-            ]}
-          >
-            <View style={styles.roleIconWrap}>
-              <Ionicons
-                name={r === "maker" ? "basket-outline" : "search-outline"}
-                size={34}
-                color={role === r ? C.tint : "rgba(255,255,255,0.65)"}
-              />
-            </View>
-            <Text style={[styles.roleTitle, role === r && styles.roleTitleSelected]}>
-              {r === "maker" ? "Maker" : "Buyer"}
-            </Text>
-            <Text style={styles.roleDesc}>
-              {r === "maker"
-                ? "Post surplus food, set box locations & earn credits"
-                : "Discover local produce, claim boxes & spend credits"}
-            </Text>
-          </Pressable>
-        ))}
+    <View style={styles.stepWrap}>
+      <Text style={styles.stepEyebrow}>Your identity</Text>
+      <Text style={styles.stepHeadline}>How will{"\n"}you join?</Text>
+      <Text style={styles.stepBody}>You can always update this in your profile.</Text>
+      <View style={styles.roleStack}>
+        {(["maker", "buyer"] as const).map((r) => {
+          const active = role === r;
+          return (
+            <Pressable
+              key={r}
+              onPress={() => { Haptics.selectionAsync(); onSelect(r); }}
+              style={({ pressed }) => [
+                styles.roleCard,
+                active && styles.roleCardActive,
+                { opacity: pressed ? 0.88 : 1 },
+              ]}
+            >
+              <View style={styles.roleCardInner}>
+                <View>
+                  <Text style={[styles.roleCardTitle, active && styles.roleCardTitleActive]}>
+                    {r === "maker" ? "Maker" : "Buyer"}
+                  </Text>
+                  <Text style={styles.roleCardDesc}>
+                    {r === "maker"
+                      ? "Post surplus food, earn credits, serve your community"
+                      : "Discover local produce, claim items, build relationships"}
+                  </Text>
+                </View>
+                <View style={[styles.roleRadio, active && styles.roleRadioActive]}>
+                  {active && <View style={styles.roleRadioDot} />}
+                </View>
+              </View>
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   );
@@ -374,17 +426,18 @@ function HowItWorksStep({ slides, currentSlide, role }: {
 }) {
   const slide = slides[currentSlide];
   return (
-    <View style={styles.stepContainer}>
-      <Text style={styles.howLabel}>
-        {role === "maker" ? "How Makers work" : "How Buyers work"}
-      </Text>
-      <View style={styles.howIconCircle}>
+    <View style={styles.stepWrap}>
+      <Text style={styles.howNum}>{slide.num}</Text>
+      <View style={styles.howIconWrap}>
         {slide.iconLib === "Ionicons" ? (
-          <Ionicons name={slide.icon as any} size={48} color={slide.color} />
+          <Ionicons name={slide.icon as any} size={44} color={AMBER_LIGHT} />
         ) : (
-          <MaterialCommunityIcons name={slide.icon as any} size={48} color={slide.color} />
+          <MaterialCommunityIcons name={slide.icon as any} size={44} color={AMBER_LIGHT} />
         )}
       </View>
+      <Text style={styles.howEyebrow}>
+        {role === "maker" ? "For Makers" : "For Buyers"}
+      </Text>
       <Text style={styles.howTitle}>{slide.title}</Text>
       <Text style={styles.howBody}>{slide.body}</Text>
     </View>
@@ -393,27 +446,21 @@ function HowItWorksStep({ slides, currentSlide, role }: {
 
 function LocationStep() {
   return (
-    <View style={styles.stepContainer}>
-      <View style={styles.stepIconCircle}>
-        <Ionicons name="location-outline" size={30} color="rgba(255,255,255,0.8)" />
-      </View>
-      <Text style={styles.stepTitle}>Your community</Text>
-      <Text style={styles.stepSubtitle}>Drop is live in Yakima, WA. More cities coming soon.</Text>
-      <View style={styles.cityCard}>
-        <View style={styles.cityCardLeft}>
-          <Ionicons name="leaf" size={20} color={C.tint} />
-          <View>
-            <Text style={styles.cityName}>Yakima, WA</Text>
-            <Text style={styles.cityMeta}>Apple Capital of the World · Active community</Text>
-          </View>
+    <View style={styles.stepWrap}>
+      <Text style={styles.stepEyebrow}>Your community</Text>
+      <Text style={styles.stepHeadline}>Where you{"\n"}belong.</Text>
+      <View style={styles.cityBlock}>
+        <View style={styles.cityBlockLeft}>
+          <Text style={styles.cityName}>Yakima, WA</Text>
+          <Text style={styles.cityMeta}>Apple Capital of the World · Active community</Text>
         </View>
-        <View style={styles.citySelected}>
-          <Feather name="check" size={16} color="#fff" />
+        <View style={styles.cityCheck}>
+          <Feather name="check" size={14} color={BG} />
         </View>
       </View>
-      <View style={styles.comingSoonBox}>
-        <Feather name="map" size={14} color="rgba(255,255,255,0.5)" />
-        <Text style={styles.comingSoonText}>More cities launching soon — invite your neighbors to grow Drop!</Text>
+      <View style={styles.comingSoonRow}>
+        <View style={styles.comingSoonDot} />
+        <Text style={styles.comingSoonText}>More cities launching soon</Text>
       </View>
     </View>
   );
@@ -422,29 +469,34 @@ function LocationStep() {
 function MakerProfileStep({ bio, onChangeBio, name }: { bio: string; onChangeBio: (v: string) => void; name: string }) {
   return (
     <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-      <View style={[styles.stepContainer, { paddingBottom: 24 }]}>
-        <View style={styles.stepIconCircle}>
-          <Ionicons name="storefront-outline" size={30} color="rgba(255,255,255,0.8)" />
+      <View style={[styles.stepWrap, { paddingBottom: 32 }]}>
+        <Text style={styles.stepEyebrow}>Your maker profile</Text>
+        <Text style={styles.stepHeadline}>Tell your{"\n"}story.</Text>
+        <Text style={styles.stepBody}>
+          Buyers love knowing who they're swapping with. Keep it brief — a sentence or two is perfect.
+        </Text>
+
+        <Text style={styles.fieldLabel}>Name</Text>
+        <View style={styles.readonlyRow}>
+          <Text style={styles.readonlyText}>{name}</Text>
         </View>
-        <Text style={styles.stepTitle}>Tell your story</Text>
-        <Text style={styles.stepSubtitle}>Buyers love knowing who they're swapping with. Add a line or two about your farm or garden.</Text>
-        <Text style={styles.inputLabel}>Your maker name</Text>
-        <View style={styles.readOnlyInput}>
-          <Text style={styles.readOnlyText}>{name}</Text>
-        </View>
-        <Text style={[styles.inputLabel, { marginTop: 20 }]}>Short bio <Text style={styles.optionalTag}>(optional)</Text></Text>
+
+        <Text style={[styles.fieldLabel, { marginTop: 32 }]}>
+          Bio{"  "}<Text style={styles.fieldOptional}>optional</Text>
+        </Text>
         <TextInput
-          style={[styles.input, styles.textArea]}
+          style={styles.bioInput}
           value={bio}
           onChangeText={onChangeBio}
-          placeholder="e.g. Small family farm in the Yakima valley. We grow heirloom tomatoes and raise Khaki Campbell ducks."
-          placeholderTextColor="rgba(255,255,255,0.35)"
+          placeholder={"e.g. Small family farm in the Yakima valley. We grow heirloom tomatoes and raise Khaki Campbell ducks."}
+          placeholderTextColor={DIM2}
           multiline
           numberOfLines={4}
           maxLength={200}
           textAlignVertical="top"
+          selectionColor={AMBER}
         />
-        <Text style={styles.charCount}>{bio.length}/200</Text>
+        <Text style={styles.charCount}>{bio.length} / 200</Text>
       </View>
     </ScrollView>
   );
@@ -454,41 +506,49 @@ function MakerPhotoStep({
   photoUri,
   onPick,
   onSkip,
+  onContinue,
 }: {
   photoUri: string | null;
   onPick: () => void;
   onSkip: () => void;
+  onContinue: () => void;
 }) {
+  const insets = useSafeAreaInsets();
+  const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
+
   return (
-    <View style={[styles.stepContainer, { flex: 1 }]}>
-      <View style={styles.stepIconCircle}>
-        <Ionicons name="camera-outline" size={30} color="rgba(255,255,255,0.8)" />
+    <View style={[styles.photoWrap, { paddingBottom: bottomPad + 24 }]}>
+      <View style={styles.stepWrap}>
+        <Text style={styles.stepEyebrow}>Profile photo</Text>
+        <Text style={styles.stepHeadline}>Put a face{"\n"}to your farm.</Text>
+        <Text style={styles.stepBody}>
+          A photo builds trust with your buyers. Totally optional.
+        </Text>
       </View>
-      <Text style={styles.stepTitle}>Add a profile photo</Text>
-      <Text style={styles.stepSubtitle}>A face or farm photo helps buyers trust you. Totally optional.</Text>
-      <Pressable onPress={onPick} style={({ pressed }) => [styles.photoPickerArea, { opacity: pressed ? 0.88 : 1 }]}>
+
+      <Pressable onPress={onPick} style={({ pressed }) => [styles.photoCircleBtn, { opacity: pressed ? 0.85 : 1 }]}>
         {photoUri ? (
-          <Image source={{ uri: photoUri }} style={styles.photoPreview} contentFit="cover" />
+          <Image source={{ uri: photoUri }} style={styles.photoCircleImg} contentFit="cover" />
         ) : (
-          <View style={styles.photoPlaceholder}>
-            <Ionicons name="camera-outline" size={44} color="rgba(255,255,255,0.4)" />
-            <Text style={styles.photoPlaceholderText}>Tap to choose a photo</Text>
+          <View style={styles.photoCirclePlaceholder}>
+            <Ionicons name="person-outline" size={52} color={DIM2} />
           </View>
         )}
+        <View style={styles.photoCircleOverlay}>
+          <Feather name="camera" size={20} color={WHITE} />
+        </View>
       </Pressable>
-      <View style={styles.photoActions}>
+
+      <View style={styles.photoFooter}>
         <Pressable
-          onPress={onPick}
-          style={({ pressed }) => [styles.photoBtn, { opacity: pressed ? 0.85 : 1 }]}
+          onPress={photoUri ? onContinue : onPick}
+          style={({ pressed }) => [styles.cta, { opacity: pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
         >
-          <LinearGradient colors={[C.tintLight, C.tint]} style={styles.photoBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-            <Ionicons name="camera-outline" size={18} color="#fff" />
-            <Text style={styles.photoBtnText}>{photoUri ? "Change photo" : "Choose photo"}</Text>
-          </LinearGradient>
+          <Text style={styles.ctaText}>{photoUri ? "Use this photo" : "Choose photo"}</Text>
+          <Feather name="arrow-right" size={18} color={BG} />
         </Pressable>
         <Pressable onPress={onSkip} style={styles.skipBtn}>
-          <Text style={styles.skipText}>{photoUri ? "Continue with this photo" : "Skip for now"}</Text>
-          <Feather name="arrow-right" size={14} color="rgba(255,255,255,0.55)" />
+          <Text style={styles.skipText}>{photoUri ? "Remove & skip" : "Skip for now"}</Text>
         </Pressable>
       </View>
     </View>
@@ -506,48 +566,48 @@ function MakerDropLocationStep({
 }) {
   return (
     <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-      <View style={[styles.stepContainer, { paddingBottom: 24 }]}>
-        <View style={styles.stepIconCircle}>
-          <Ionicons name="cube-outline" size={30} color="rgba(255,255,255,0.8)" />
-        </View>
-        <Text style={styles.stepTitle}>Choose your drop box</Text>
-        <Text style={styles.stepSubtitle}>Select the community swap box where you'll drop off your produce.</Text>
-        {locations.map((loc) => (
-          <Pressable
-            key={loc.id}
-            onPress={() => { Haptics.selectionAsync(); onSelect(loc); }}
-            style={({ pressed }) => [
-              styles.dropLocCard,
-              selected?.id === loc.id && styles.dropLocCardSelected,
-              { opacity: pressed ? 0.9 : 1 },
-            ]}
-          >
-            <View style={styles.dropLocHeader}>
-              <View style={styles.dropLocIconWrap}>
-                <MaterialCommunityIcons
-                  name="package-variant"
-                  size={22}
-                  color={selected?.id === loc.id ? C.tint : "rgba(255,255,255,0.65)"}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.dropLocName, selected?.id === loc.id && styles.dropLocNameSelected]}>
-                  {loc.name}
-                </Text>
-                <Text style={styles.dropLocAddr}>{loc.address}, {loc.city} {loc.state}</Text>
-              </View>
-              {selected?.id === loc.id && (
-                <View style={styles.dropLocCheck}>
-                  <Feather name="check" size={14} color="#fff" />
+      <View style={[styles.stepWrap, { paddingBottom: 32 }]}>
+        <Text style={styles.stepEyebrow}>Drop location</Text>
+        <Text style={styles.stepHeadline}>Where will{"\n"}you drop?</Text>
+        <Text style={styles.stepBody}>
+          Select the community swap box where you'll leave your produce.
+        </Text>
+        <View style={styles.locList}>
+          {locations.map((loc) => {
+            const active = selected?.id === loc.id;
+            return (
+              <Pressable
+                key={loc.id}
+                onPress={() => { Haptics.selectionAsync(); onSelect(loc); }}
+                style={({ pressed }) => [
+                  styles.locCard,
+                  active && styles.locCardActive,
+                  { opacity: pressed ? 0.88 : 1 },
+                ]}
+              >
+                <View style={styles.locCardInner}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.locName, active && styles.locNameActive]}>
+                      {loc.name}
+                    </Text>
+                    <Text style={styles.locAddr}>
+                      {loc.address}, {loc.city} {loc.state}
+                    </Text>
+                    {loc.description ? (
+                      <Text style={styles.locDesc} numberOfLines={2}>{loc.description}</Text>
+                    ) : null}
+                  </View>
+                  <View style={[styles.roleRadio, active && styles.roleRadioActive]}>
+                    {active && <View style={styles.roleRadioDot} />}
+                  </View>
                 </View>
-              )}
-            </View>
-            <Text style={styles.dropLocDesc}>{loc.description}</Text>
-          </Pressable>
-        ))}
-        <View style={styles.moreLocNote}>
-          <Feather name="plus-circle" size={13} color="rgba(255,255,255,0.4)" />
-          <Text style={styles.moreLocText}>More drop locations will be added as the community grows.</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <View style={styles.comingSoonRow}>
+          <View style={styles.comingSoonDot} />
+          <Text style={styles.comingSoonText}>More drop locations as the community grows</Text>
         </View>
       </View>
     </ScrollView>
@@ -555,35 +615,32 @@ function MakerDropLocationStep({
 }
 
 function AllDoneStep({ role, name }: { role: "maker" | "buyer"; name: string }) {
+  const first = name.split(" ")[0];
   return (
-    <View style={styles.stepContainer}>
-      <View style={[styles.logoCircle, { backgroundColor: "rgba(212,130,42,0.2)" }]}>
-        <Ionicons name="checkmark-circle" size={56} color={C.tint} />
-      </View>
-      <Text style={styles.appName}>You're all set!</Text>
-      <Text style={styles.tagline}>
+    <View style={styles.stepWrap}>
+      <Text style={styles.doneEyebrow}>You're in.</Text>
+      <Text style={styles.doneHeadline}>Welcome,{"\n"}{first}.</Text>
+      <Text style={styles.stepBody}>
         {role === "maker"
-          ? `Welcome to Drop, ${name.split(" ")[0]}! Your swap box is ready. Start posting your first harvest.`
-          : `Welcome to Drop, ${name.split(" ")[0]}! You have 20 credits to start exploring fresh local produce.`}
+          ? "Your swap box is ready. Start posting your first harvest whenever you're ready."
+          : "You have 20 credits to start exploring fresh local produce."}
       </Text>
-      <View style={styles.featureList}>
+      <View style={styles.doneList}>
         {(role === "maker"
           ? [
-              { icon: "camera" as const, text: "Post your first harvest from the Post tab" },
-              { icon: "map-pin" as const, text: "Drop produce at Lynch Lane swap box" },
-              { icon: "dollar-sign" as const, text: "Earn credits when buyers claim your items" },
+              "Post your first harvest from the Post tab",
+              "Drop produce at the Lynch Lane swap box",
+              "Earn credits when buyers claim your items",
             ]
           : [
-              { icon: "map" as const, text: "Explore the map to find nearby boxes" },
-              { icon: "package" as const, text: "Claim fresh produce with your 20 credits" },
-              { icon: "zap" as const, text: "Unlock boxes with your QR code" },
+              "Explore the map to find nearby swap boxes",
+              "Claim fresh produce with your 20 credits",
+              "Unlock boxes instantly with your QR code",
             ]
-        ).map((f) => (
-          <View key={f.text} style={styles.featureRow}>
-            <View style={styles.featureIcon}>
-              <Feather name={f.icon} size={16} color={C.tint} />
-            </View>
-            <Text style={styles.featureText}>{f.text}</Text>
+        ).map((item, i) => (
+          <View key={i} style={styles.doneRow}>
+            <Text style={styles.doneNum}>{String(i + 1).padStart(2, "0")}</Text>
+            <Text style={styles.doneItem}>{item}</Text>
           </View>
         ))}
       </View>
@@ -593,398 +650,413 @@ function AllDoneStep({ role, name }: { role: "maker" | "buyer"; name: string }) 
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  inner: { flex: 1, paddingHorizontal: 24 },
-  backBtn: {
-    position: "absolute",
-    left: 20,
-    zIndex: 10,
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "rgba(255,255,255,0.12)",
+
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 24,
+    paddingBottom: 16,
+  },
+  backBtn: { width: 44, height: 44, justifyContent: "center" },
+  stepCounter: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 13,
+    color: DIM,
+    letterSpacing: 0.5,
+  },
+  topBarRight: { width: 44 },
+
+  progressTrack: {
+    height: 1.5,
+    backgroundColor: BORDER,
+    marginHorizontal: 24,
+    borderRadius: 1,
+    overflow: "hidden",
+    marginBottom: 4,
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: AMBER,
+    borderRadius: 1,
+  },
+
+  content: { flex: 1, paddingHorizontal: 28 },
+
+  footer: { paddingHorizontal: 28 },
+
+  cta: {
+    backgroundColor: CREAM,
+    borderRadius: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 28,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 10,
   },
-  stepContainer: { flex: 1, justifyContent: "center" },
-  logoCircle: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: "rgba(255,255,255,0.12)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 28,
-    alignSelf: "center",
-  },
-  stepIconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 24,
-    alignSelf: "flex-start",
-  },
-  appName: {
+  ctaDisabled: { backgroundColor: "rgba(247,242,234,0.18)" },
+  ctaText: {
     fontFamily: "Inter_700Bold",
-    fontSize: 36,
-    color: "#FFFFFF",
-    textAlign: "center",
-    letterSpacing: -1,
-    marginBottom: 14,
+    fontSize: 16,
+    color: BG,
+    letterSpacing: -0.2,
   },
-  tagline: {
+  ctaTextDisabled: { color: DIM },
+
+  stepWrap: { flex: 1, justifyContent: "center", paddingTop: 24 },
+
+  stepEyebrow: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 13,
+    color: AMBER,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    marginBottom: 16,
+  },
+  stepHeadline: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 42,
+    color: WHITE,
+    letterSpacing: -1.5,
+    lineHeight: 48,
+    marginBottom: 18,
+  },
+  stepBody: {
     fontFamily: "Inter_400Regular",
     fontSize: 16,
-    color: "rgba(255,255,255,0.72)",
-    textAlign: "center",
-    lineHeight: 25,
-    marginBottom: 44,
-    paddingHorizontal: 8,
+    color: DIM,
+    lineHeight: 26,
+    marginBottom: 40,
   },
-  featureList: { gap: 14 },
-  featureRow: { flexDirection: "row", alignItems: "center", gap: 14 },
-  featureIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  featureText: {
+
+  underlineField: { gap: 0 },
+  underlineInput: {
     fontFamily: "Inter_500Medium",
-    fontSize: 15,
-    color: "rgba(255,255,255,0.82)",
-    flex: 1,
+    fontSize: 22,
+    color: WHITE,
+    paddingVertical: 12,
+    paddingHorizontal: 0,
   },
-  stepTitle: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 28,
-    color: "#FFFFFF",
-    letterSpacing: -0.5,
-    marginBottom: 10,
+  underlineLine: {
+    height: 1.5,
+    backgroundColor: BORDER,
+    borderRadius: 1,
   },
-  stepSubtitle: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 15,
-    color: "rgba(255,255,255,0.62)",
-    marginBottom: 32,
-    lineHeight: 22,
-  },
-  input: {
-    backgroundColor: "rgba(255,255,255,0.12)",
-    borderRadius: 14,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    fontFamily: "Inter_500Medium",
-    fontSize: 17,
-    color: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
-  },
-  textArea: {
-    minHeight: 110,
-    paddingTop: 14,
-  },
-  inputLabel: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 13,
-    color: "rgba(255,255,255,0.6)",
-    letterSpacing: 0.3,
-    marginBottom: 8,
-    textTransform: "uppercase",
-  },
-  optionalTag: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 12,
-    color: "rgba(255,255,255,0.38)",
-    textTransform: "none",
-  },
-  charCount: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 12,
-    color: "rgba(255,255,255,0.35)",
-    textAlign: "right",
-    marginTop: 6,
-  },
-  readOnlyInput: {
-    backgroundColor: "rgba(255,255,255,0.07)",
-    borderRadius: 14,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-  },
-  readOnlyText: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 17,
-    color: "rgba(255,255,255,0.55)",
-  },
-  roleRow: { gap: 14 },
+  underlineLineActive: { backgroundColor: AMBER },
+
+  roleStack: { gap: 12 },
   roleCard: {
-    backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1.5,
+    borderColor: BORDER,
     borderRadius: 18,
     padding: 22,
-    borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: DIM3,
   },
-  roleCardSelected: {
-    backgroundColor: "rgba(212,130,42,0.16)",
-    borderColor: C.tint,
+  roleCardActive: {
+    borderColor: AMBER,
+    backgroundColor: "rgba(212,130,42,0.08)",
   },
-  roleIconWrap: { marginBottom: 14 },
-  roleTitle: {
+  roleCardInner: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 16 },
+  roleCardTitle: {
     fontFamily: "Inter_700Bold",
     fontSize: 20,
-    color: "rgba(255,255,255,0.88)",
+    color: "rgba(255,255,255,0.7)",
     marginBottom: 6,
+    letterSpacing: -0.3,
   },
-  roleTitleSelected: { color: C.tintLight },
-  roleDesc: {
+  roleCardTitleActive: { color: WHITE },
+  roleCardDesc: {
     fontFamily: "Inter_400Regular",
     fontSize: 14,
-    color: "rgba(255,255,255,0.55)",
+    color: DIM2,
     lineHeight: 20,
+    maxWidth: "90%",
   },
-  howLabel: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 12,
-    color: "rgba(255,255,255,0.45)",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    marginBottom: 32,
-  },
-  howIconCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: "rgba(255,255,255,0.1)",
+  roleRadio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: BORDER,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 32,
-    alignSelf: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    flexShrink: 0,
+  },
+  roleRadioActive: { borderColor: AMBER },
+  roleRadioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: AMBER,
+  },
+
+  howNum: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 96,
+    color: "rgba(255,255,255,0.05)",
+    letterSpacing: -4,
+    marginBottom: -20,
+    lineHeight: 96,
+  },
+  howIconWrap: { marginBottom: 28 },
+  howEyebrow: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 13,
+    color: AMBER,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    marginBottom: 14,
   },
   howTitle: {
     fontFamily: "Inter_700Bold",
-    fontSize: 30,
-    color: "#fff",
-    letterSpacing: -0.5,
+    fontSize: 36,
+    color: WHITE,
+    letterSpacing: -1.2,
     marginBottom: 16,
-    textAlign: "center",
+    lineHeight: 42,
   },
   howBody: {
     fontFamily: "Inter_400Regular",
     fontSize: 16,
-    color: "rgba(255,255,255,0.68)",
+    color: DIM,
     lineHeight: 26,
-    textAlign: "center",
-    paddingHorizontal: 8,
   },
-  cityCard: {
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 16,
-    padding: 18,
+
+  cityBlock: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: DIM3,
     borderWidth: 1.5,
-    borderColor: C.tint,
-    marginBottom: 16,
+    borderColor: AMBER + "55",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
   },
-  cityCardLeft: { flexDirection: "row", alignItems: "center", gap: 14, flex: 1 },
+  cityBlockLeft: { gap: 4 },
   cityName: {
     fontFamily: "Inter_700Bold",
-    fontSize: 18,
-    color: "#fff",
-    marginBottom: 3,
+    fontSize: 20,
+    color: WHITE,
+    letterSpacing: -0.4,
   },
   cityMeta: {
     fontFamily: "Inter_400Regular",
-    fontSize: 12,
-    color: "rgba(255,255,255,0.55)",
+    fontSize: 13,
+    color: DIM,
   },
-  citySelected: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: C.tint,
+  cityCheck: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: AMBER,
     alignItems: "center",
     justifyContent: "center",
   },
-  comingSoonBox: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-  },
+  comingSoonRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  comingSoonDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: BORDER },
   comingSoonText: {
     fontFamily: "Inter_400Regular",
     fontSize: 13,
-    color: "rgba(255,255,255,0.45)",
-    flex: 1,
-    lineHeight: 19,
+    color: DIM2,
   },
-  photoPickerArea: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    overflow: "hidden",
+
+  fieldLabel: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 12,
+    color: DIM,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    marginBottom: 10,
+  },
+  fieldOptional: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    color: DIM2,
+    textTransform: "none",
+    letterSpacing: 0,
+  },
+  readonlyRow: {
+    borderBottomWidth: 1.5,
+    borderBottomColor: BORDER,
+    paddingBottom: 12,
+  },
+  readonlyText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 20,
+    color: "rgba(255,255,255,0.55)",
+    letterSpacing: -0.3,
+  },
+  bioInput: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 16,
+    color: WHITE,
+    borderWidth: 1.5,
+    borderColor: BORDER,
+    borderRadius: 14,
+    padding: 16,
+    minHeight: 120,
+    backgroundColor: DIM3,
+    lineHeight: 24,
+  },
+  charCount: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    color: DIM2,
+    textAlign: "right",
+    marginTop: 8,
+  },
+
+  photoWrap: { flex: 1, paddingHorizontal: 28 },
+  photoCircleBtn: {
+    width: 180,
+    height: 180,
+    borderRadius: 90,
     alignSelf: "center",
-    marginBottom: 28,
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.2)",
+    marginTop: 8,
+    marginBottom: 40,
+    overflow: "hidden",
+    borderWidth: 1.5,
+    borderColor: BORDER,
+    position: "relative",
   },
-  photoPreview: {
+  photoCircleImg: { width: "100%", height: "100%" },
+  photoCirclePlaceholder: {
     width: "100%",
     height: "100%",
-  },
-  photoPlaceholder: {
-    flex: 1,
-    backgroundColor: "rgba(255,255,255,0.09)",
+    backgroundColor: DIM3,
     alignItems: "center",
     justifyContent: "center",
-    gap: 12,
   },
-  photoPlaceholderText: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 14,
-    color: "rgba(255,255,255,0.4)",
-  },
-  photoActions: { gap: 14, alignItems: "center" },
-  photoBtn: { width: "100%" },
-  photoBtnGradient: {
-    flexDirection: "row",
+  photoCircleOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 52,
+    backgroundColor: "rgba(0,0,0,0.45)",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
-    paddingVertical: 16,
-    borderRadius: 14,
   },
-  photoBtnText: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 16,
-    color: "#fff",
-  },
-  skipBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 8,
-  },
+  photoFooter: { gap: 14 },
+  skipBtn: { alignItems: "center", paddingVertical: 10 },
   skipText: {
     fontFamily: "Inter_500Medium",
     fontSize: 14,
-    color: "rgba(255,255,255,0.55)",
+    color: DIM,
   },
-  dropLocCard: {
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderRadius: 18,
-    padding: 18,
+
+  locList: { gap: 12, marginBottom: 20 },
+  locCard: {
     borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.12)",
-    marginBottom: 12,
-  },
-  dropLocCardSelected: {
-    backgroundColor: "rgba(212,130,42,0.15)",
-    borderColor: C.tint,
-  },
-  dropLocHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 10,
-  },
-  dropLocIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  dropLocName: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 16,
-    color: "rgba(255,255,255,0.88)",
-    marginBottom: 3,
-  },
-  dropLocNameSelected: { color: C.tintLight },
-  dropLocAddr: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 13,
-    color: "rgba(255,255,255,0.5)",
-  },
-  dropLocCheck: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: C.tint,
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  dropLocDesc: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 13,
-    color: "rgba(255,255,255,0.5)",
-    lineHeight: 19,
-  },
-  moreLocNote: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 4,
-  },
-  moreLocText: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 12,
-    color: "rgba(255,255,255,0.38)",
-    flex: 1,
-    lineHeight: 17,
-  },
-  btn: { marginTop: 16 },
-  btnDisabled: { opacity: 0.38 },
-  btnGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    paddingVertical: 18,
+    borderColor: BORDER,
     borderRadius: 16,
+    padding: 18,
+    backgroundColor: DIM3,
   },
-  btnText: {
+  locCardActive: {
+    borderColor: AMBER,
+    backgroundColor: "rgba(212,130,42,0.08)",
+  },
+  locCardInner: { flexDirection: "row", alignItems: "flex-start", gap: 14 },
+  locName: {
     fontFamily: "Inter_700Bold",
     fontSize: 17,
-    color: "#FFFFFF",
-    letterSpacing: 0.1,
+    color: "rgba(255,255,255,0.7)",
+    letterSpacing: -0.3,
+    marginBottom: 4,
   },
-  dotsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 7,
-    marginTop: 14,
+  locNameActive: { color: WHITE },
+  locAddr: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 13,
+    color: DIM,
+    marginBottom: 6,
   },
-  dot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: "rgba(255,255,255,0.25)",
+  locDesc: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 13,
+    color: DIM2,
+    lineHeight: 19,
   },
-  dotActive: {
-    backgroundColor: C.tint,
-    width: 20,
-    borderRadius: 4,
+
+  welcomeWrap: { flex: 1, justifyContent: "space-between", paddingTop: 32, paddingBottom: 24 },
+  welcomeTop: { gap: 0 },
+  welcomeEyebrow: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 12,
+    color: AMBER,
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+    marginBottom: 12,
+  },
+  welcomeWordmark: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 86,
+    color: WHITE,
+    letterSpacing: -5,
+    lineHeight: 86,
+    marginBottom: 20,
+  },
+  welcomeSub: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 18,
+    color: DIM,
+    lineHeight: 28,
+  },
+  welcomeFeatures: { gap: 14 },
+  featureRow: { flexDirection: "row", alignItems: "center", gap: 14 },
+  featureDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: AMBER,
+  },
+  featureText: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 15,
+    color: DIM,
+  },
+  welcomeTagline: { flexDirection: "row", alignItems: "center", gap: 14 },
+  amberLine: { width: 28, height: 1.5, backgroundColor: AMBER },
+  welcomeCity: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 12,
+    color: DIM2,
+    letterSpacing: 0.5,
+  },
+
+  doneEyebrow: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 16,
+    color: AMBER,
+    letterSpacing: 0,
+    marginBottom: 8,
+  },
+  doneHeadline: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 52,
+    color: WHITE,
+    letterSpacing: -2,
+    lineHeight: 56,
+    marginBottom: 22,
+  },
+  doneList: { gap: 20 },
+  doneRow: { flexDirection: "row", alignItems: "flex-start", gap: 18 },
+  doneNum: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 13,
+    color: AMBER,
+    letterSpacing: 0.5,
+    marginTop: 2,
+    minWidth: 24,
+  },
+  doneItem: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 16,
+    color: DIM,
+    lineHeight: 24,
+    flex: 1,
   },
 });
