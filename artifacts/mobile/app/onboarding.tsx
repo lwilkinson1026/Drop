@@ -323,7 +323,6 @@ function WelcomeStep({ topPad }: { topPad: number }) {
   return (
     <View style={styles.welcomeWrap}>
       <View style={styles.welcomeTop}>
-        <Text style={styles.welcomeEyebrow}>Live Kindred</Text>
         <Text style={styles.welcomeWordmark}>Drop.</Text>
         <Text style={styles.welcomeSub}>
           A rural food-swap network.{"\n"}Fresh from the farm, straight to your hands.
@@ -984,12 +983,7 @@ const styles = StyleSheet.create({
   welcomeWrap: { flex: 1, justifyContent: "space-between", paddingTop: 32, paddingBottom: 24 },
   welcomeTop: { gap: 0 },
   welcomeEyebrow: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 12,
-    color: AMBER,
-    letterSpacing: 1.5,
-    textTransform: "uppercase",
-    marginBottom: 12,
+    display: "none",
   },
   welcomeWordmark: {
     fontFamily: "Inter_700Bold",
