@@ -174,9 +174,17 @@ export default function BoxContentsScreen() {
                   <View style={styles.itemBody}>
                     <View style={styles.itemTitleRow}>
                       <Text style={styles.itemTitle} numberOfLines={1}>{item.title}</Text>
-                      <View style={styles.creditBadge}>
-                        <Ionicons name="leaf" size={12} color={C.tint} />
-                        <Text style={styles.creditText}>{item.creditCost}</Text>
+                      <View style={styles.badgeRow}>
+                        {item.priceCents ? (
+                          <View style={styles.priceBadge}>
+                            <Ionicons name="card" size={11} color="#1A1A2E" />
+                            <Text style={styles.priceText}>${(item.priceCents / 100).toFixed(2)}</Text>
+                          </View>
+                        ) : null}
+                        <View style={styles.creditBadge}>
+                          <Ionicons name="leaf" size={12} color={C.tint} />
+                          <Text style={styles.creditText}>{item.creditCost}</Text>
+                        </View>
                       </View>
                     </View>
 
@@ -359,6 +367,9 @@ const styles = StyleSheet.create({
   itemBody: { padding: 16, gap: 10 },
   itemTitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   itemTitle: { fontFamily: "Inter_700Bold", fontSize: 17, color: C.text, flex: 1 },
+  badgeRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  priceBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#1A1A2E18", paddingHorizontal: 9, paddingVertical: 5, borderRadius: 12 },
+  priceText: { fontFamily: "Inter_700Bold", fontSize: 13, color: "#1A1A2E" },
   creditBadge: {
     flexDirection: "row",
     alignItems: "center",

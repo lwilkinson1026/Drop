@@ -61,6 +61,7 @@ export interface ListingItem {
   quantity: number;
   unit: string;
   creditCost: number;
+  priceCents?: number;
   timestamp: number;
   available: boolean;
   category: "vegetables" | "fruits" | "herbs" | "eggs" | "dairy" | "other";

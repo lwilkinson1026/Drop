@@ -1,6 +1,7 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
+import * as WebBrowser from "expo-web-browser";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
@@ -64,9 +65,71 @@ export default function ListingDetailScreen() {
 
   const isOwner = user?.id === listing.makerId;
   const canClaim = !isOwner && listing.available && user && user.creditBalance >= listing.creditCost;
+  const canPayWithCard = !isOwner && listing.available && user && !!listing.priceCents;
   const { getUserRating, getReviewsForUser } = useApp();
   const makerRating = getUserRating(listing.makerId);
   const makerReviews = getReviewsForUser(listing.makerId);
+  const [payingWithCard, setPayingWithCard] = useState(false);
+
+  const apiBaseUrl = process.env.EXPO_PUBLIC_API_URL ?? "";
+
+  const handlePayWithCard = async () => {
+    if (!user || !listing.priceCents) return;
+    setPayingWithCard(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/payments/create-session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listingId: listing.id,
+          listingTitle: listing.title,
+          makerName: listing.makerName,
+          priceCents: listing.priceCents,
+          apiBaseUrl,
+        }),
+      });
+      const { url, error } = await res.json();
+      if (error || !url) {
+        Alert.alert("Payment Error", error ?? "Could not create checkout session.");
+        setPayingWithCard(false);
+        return;
+      }
+
+      const result = await WebBrowser.openAuthSessionAsync(url, "mobile://payment-result");
+
+      if (result.type === "success" && result.url) {
+        const params = new URLSearchParams(result.url.split("?")[1] ?? "");
+        const sessionId = params.get("session_id");
+        const status = params.get("status");
+
+        if (status === "cancel") {
+          Alert.alert("Payment cancelled", "You can try again anytime.");
+          setPayingWithCard(false);
+          return;
+        }
+
+        if (sessionId) {
+          const verifyRes = await fetch(`${apiBaseUrl}/api/payments/verify?session_id=${sessionId}`);
+          const { paid } = await verifyRes.json();
+          if (paid) {
+            const success = await claimListing(listing);
+            if (success) {
+              router.push({ pathname: "/qr/[id]", params: { id: listing.id } });
+            } else {
+              Alert.alert("Claim failed", "Payment succeeded but claiming failed. Please contact support.");
+            }
+          } else {
+            Alert.alert("Payment not confirmed", "We couldn't verify your payment. Please try again.");
+          }
+        }
+      }
+    } catch (err: any) {
+      Alert.alert("Error", "Something went wrong. Please try again.");
+    } finally {
+      setPayingWithCard(false);
+    }
+  };
   const catColor = CATEGORY_COLORS[listing.category] || C.tint;
 
   const handleClaim = async () => {
@@ -295,6 +358,37 @@ export default function ListingDetailScreen() {
               <Text style={styles.deleteBtnText}>Remove</Text>
             </Pressable>
           </View>
+        ) : listing.priceCents ? (
+          <View style={styles.paymentOptions}>
+            <Pressable
+              onPress={handlePayWithCard}
+              disabled={!canPayWithCard || payingWithCard || !listing.available}
+              style={({ pressed }) => [
+                styles.cardPayBtn,
+                { opacity: (!canPayWithCard || payingWithCard || !listing.available) ? 0.5 : pressed ? 0.87 : 1 },
+              ]}
+            >
+              <LinearGradient colors={["#1A1A2E", "#16213E"]} style={styles.cardPayBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                <Ionicons name="card" size={18} color="#fff" />
+                <Text style={styles.cardPayBtnText}>
+                  {payingWithCard ? "Opening checkout…" : !listing.available ? "Sold" : `$${(listing.priceCents / 100).toFixed(2)}`}
+                </Text>
+              </LinearGradient>
+            </Pressable>
+            <Pressable
+              onPress={handleClaim}
+              disabled={!canClaim || claiming}
+              style={({ pressed }) => [
+                styles.creditsPayBtn,
+                { opacity: (!canClaim || claiming) ? 0.5 : pressed ? 0.87 : 1 },
+              ]}
+            >
+              <Ionicons name="leaf" size={16} color={C.tint} />
+              <Text style={styles.creditsPayBtnText}>
+                {claiming ? "…" : `${listing.creditCost} credits`}
+              </Text>
+            </Pressable>
+          </View>
         ) : (
           <Pressable
             onPress={handleClaim}
@@ -436,6 +530,12 @@ const styles = StyleSheet.create({
   dropoffPhoto: { width: "100%", height: "100%" },
   dropoffPhotoBadge: { position: "absolute", bottom: 8, left: 8, flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(0,0,0,0.55)", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
   dropoffPhotoBadgeText: { fontFamily: "Inter_500Medium", fontSize: 12, color: "#fff" },
+  paymentOptions: { flexDirection: "row", gap: 10, alignItems: "center" },
+  cardPayBtn: { flex: 1 },
+  cardPayBtnGradient: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 18, borderRadius: 16 },
+  cardPayBtnText: { fontFamily: "Inter_700Bold", fontSize: 16, color: "#fff" },
+  creditsPayBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: C.tint + "14", paddingHorizontal: 16, paddingVertical: 18, borderRadius: 16, borderWidth: 1.5, borderColor: C.tint + "33" },
+  creditsPayBtnText: { fontFamily: "Inter_700Bold", fontSize: 14, color: C.tint },
   notFound: { fontFamily: "Inter_600SemiBold", fontSize: 18, color: C.text, marginTop: 12 },
   backBtn: { marginTop: 16, backgroundColor: C.text, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
   backBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: C.surface },

@@ -36,6 +36,7 @@ export default function PostScreen() {
   const [quantity, setQuantity] = useState("1");
   const [unit, setUnit] = useState("lbs");
   const [creditCost, setCreditCost] = useState("3");
+  const [priceDollars, setPriceDollars] = useState("");
   const [category, setCategory] = useState<ListingItem["category"]>("vegetables");
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [dropOffPhotoUri, setDropOffPhotoUri] = useState<string | null>(null);
@@ -117,6 +118,7 @@ export default function PostScreen() {
       quantity: parseInt(quantity) || 1,
       unit: unit.trim() || "lbs",
       creditCost: parseInt(creditCost) || 3,
+      priceCents: priceDollars.trim() ? Math.round(parseFloat(priceDollars) * 100) : undefined,
       category,
       available: true,
     });
@@ -348,6 +350,27 @@ export default function PostScreen() {
           </View>
 
           <View style={styles.field}>
+            <Text style={styles.label}>Cash Price <Text style={styles.labelOptional}>(optional)</Text></Text>
+            <View style={styles.dollarRow}>
+              <View style={styles.dollarSign}>
+                <Text style={styles.dollarSignText}>$</Text>
+              </View>
+              <TextInput
+                style={[styles.input, styles.dollarInput]}
+                value={priceDollars}
+                onChangeText={setPriceDollars}
+                keyboardType="decimal-pad"
+                placeholder="0.00  — leave blank for credits only"
+                placeholderTextColor={C.textMuted}
+                maxLength={6}
+              />
+            </View>
+            <Text style={styles.dollarHint}>
+              When set, buyers can pay by card instead of (or in addition to) using credits.
+            </Text>
+          </View>
+
+          <View style={styles.field}>
             <Text style={styles.label}>Box Location</Text>
             {availableLocations.map((loc) => (
               <Pressable
@@ -417,6 +440,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
   },
+  photoOverlayBadge: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(0,0,0,0.45)", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
   photoOverlayText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: "#fff" },
   photoPlaceholder: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
   cameraCircle: {
@@ -433,6 +457,12 @@ const styles = StyleSheet.create({
   field: { gap: 8 },
   row: { flexDirection: "row", gap: 12 },
   label: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: C.text },
+  labelOptional: { fontFamily: "Inter_400Regular", fontSize: 13, color: C.textMuted },
+  dollarRow: { flexDirection: "row", alignItems: "center" },
+  dollarSign: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.cardBorder, borderRightWidth: 0, borderTopLeftRadius: 14, borderBottomLeftRadius: 14, paddingHorizontal: 12, paddingVertical: 13 },
+  dollarSignText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: C.text },
+  dollarInput: { flex: 1, borderTopLeftRadius: 0, borderBottomLeftRadius: 0 },
+  dollarHint: { fontFamily: "Inter_400Regular", fontSize: 12, color: C.textMuted, lineHeight: 17 },
   input: {
     backgroundColor: C.surface,
     borderRadius: 14,
