@@ -25,9 +25,12 @@ const C = Colors.light;
 
 const CATEGORIES: ListingItem["category"][] = ["vegetables", "fruits", "herbs", "eggs", "dairy", "other"];
 
+type PostStep = "form" | "dropoff";
+
 export default function PostScreen() {
   const insets = useSafeAreaInsets();
   const { user, addListing, dropLocations } = useApp();
+  const [step, setStep] = useState<PostStep>("form");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [quantity, setQuantity] = useState("1");
@@ -35,6 +38,8 @@ export default function PostScreen() {
   const [creditCost, setCreditCost] = useState("3");
   const [category, setCategory] = useState<ListingItem["category"]>("vegetables");
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [dropOffPhotoUri, setDropOffPhotoUri] = useState<string | null>(null);
+  const [dropOffTimestamp] = useState(() => Date.now());
 
   const availableLocations = dropLocations.length > 0 ? dropLocations : [];
   const defaultLoc = user?.defaultDropLocationId
@@ -64,11 +69,34 @@ export default function PostScreen() {
     }
   };
 
-  const handleSubmit = async () => {
+  const handlePickDropOffPhoto = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission needed", "Allow photo access to take a drop-off photo.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.75,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setDropOffPhotoUri(result.assets[0].uri);
+    }
+  };
+
+  const handleFormNext = () => {
     if (!title.trim() || !description.trim()) {
       Alert.alert("Missing info", "Please fill in title and description.");
       return;
     }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setStep("dropoff");
+  };
+
+  const handleSubmit = async () => {
     if (!user) return;
     setIsSubmitting(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -78,6 +106,8 @@ export default function PostScreen() {
       title: title.trim(),
       description: description.trim(),
       photoUri,
+      dropOffPhotoUri,
+      dropOffTimestamp,
       boxLocation: {
         lat: selectedLocation.lat,
         lng: selectedLocation.lng,
@@ -93,6 +123,109 @@ export default function PostScreen() {
     setIsSubmitting(false);
     router.back();
   };
+
+  if (step === "dropoff") {
+    const ts = new Date(dropOffTimestamp);
+    const tsStr = ts.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+
+    return (
+      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+        <View style={[styles.header, { paddingTop: topPad + 8 }]}>
+          <Pressable onPress={() => setStep("form")} style={styles.closeBtn}>
+            <Feather name="arrow-left" size={22} color={C.text} />
+          </Pressable>
+          <Text style={styles.headerTitle}>Confirm Drop-Off</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        <ScrollView
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomPad + 120 }]}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.dropoffHero}>
+            <View style={styles.dropoffIconCircle}>
+              <Ionicons name="camera" size={32} color={C.tint} />
+            </View>
+            <Text style={styles.dropoffTitle}>Photo proof of drop-off</Text>
+            <Text style={styles.dropoffSub}>
+              Take or upload a photo showing your item inside the box. This timestamp creates a verifiable record for the community.
+            </Text>
+          </View>
+
+          <View style={styles.timestampBanner}>
+            <Feather name="clock" size={14} color={C.accent} />
+            <Text style={styles.timestampText}>Auto-timestamped: {tsStr}</Text>
+          </View>
+
+          <Pressable onPress={handlePickDropOffPhoto} style={styles.dropoffPhotoArea}>
+            {dropOffPhotoUri ? (
+              <>
+                <Image source={{ uri: dropOffPhotoUri }} style={styles.dropoffPhotoPreview} contentFit="cover" />
+                <View style={styles.photoOverlay}>
+                  <View style={styles.photoOverlayBadge}>
+                    <Feather name="camera" size={14} color="#fff" />
+                    <Text style={styles.photoOverlayText}>Retake</Text>
+                  </View>
+                </View>
+              </>
+            ) : (
+              <View style={styles.dropoffPhotoEmpty}>
+                <Ionicons name="camera-outline" size={48} color={C.textMuted} />
+                <Text style={styles.dropoffPhotoEmptyTitle}>Tap to add drop-off photo</Text>
+                <Text style={styles.dropoffPhotoEmptySubtext}>Show the item clearly inside the box</Text>
+              </View>
+            )}
+          </Pressable>
+
+          <View style={styles.dropoffInfo}>
+            <View style={styles.dropoffInfoRow}>
+              <Ionicons name="leaf" size={16} color={C.tint} />
+              <Text style={styles.dropoffInfoText} numberOfLines={1}><Text style={styles.bold}>Item:</Text> {title}</Text>
+            </View>
+            <View style={styles.dropoffInfoRow}>
+              <Feather name="map-pin" size={16} color={C.tint} />
+              <Text style={styles.dropoffInfoText} numberOfLines={1}><Text style={styles.bold}>Box:</Text> {selectedLocation?.name}</Text>
+            </View>
+            <View style={styles.dropoffInfoRow}>
+              <Feather name="package" size={16} color={C.tint} />
+              <Text style={styles.dropoffInfoText}><Text style={styles.bold}>Quantity:</Text> {quantity} {unit} · {creditCost} credits</Text>
+            </View>
+          </View>
+
+          <View style={styles.dropoffNote}>
+            <Feather name="shield" size={14} color={C.textSecondary} />
+            <Text style={styles.dropoffNoteText}>
+              Drop-off photos are kept private and only reviewed if a dispute is raised. They help admins handle abandoned or expired items.
+            </Text>
+          </View>
+        </ScrollView>
+
+        <View style={[styles.submitSection, { paddingBottom: bottomPad + 20 }]}>
+          <Pressable
+            onPress={handleSubmit}
+            disabled={isSubmitting}
+            style={({ pressed }) => [{ opacity: pressed || isSubmitting ? 0.85 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }]}
+          >
+            <LinearGradient colors={[C.tintLight, C.tint]} style={styles.submitBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+              {isSubmitting ? (
+                <Text style={styles.submitBtnText}>Posting...</Text>
+              ) : (
+                <>
+                  <Feather name="check-circle" size={18} color="#fff" />
+                  <Text style={styles.submitBtnText}>Confirm &amp; Post</Text>
+                </>
+              )}
+            </LinearGradient>
+          </Pressable>
+          {!dropOffPhotoUri && (
+            <Pressable onPress={handleSubmit} disabled={isSubmitting} style={styles.skipDropoff}>
+              <Text style={styles.skipDropoffText}>Skip photo &amp; post anyway</Text>
+            </Pressable>
+          )}
+        </View>
+      </KeyboardAvoidingView>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -244,22 +377,15 @@ export default function PostScreen() {
 
       <View style={[styles.submitSection, { paddingBottom: bottomPad + 20 }]}>
         <Pressable
-          onPress={handleSubmit}
-          disabled={isSubmitting}
+          onPress={handleFormNext}
           style={({ pressed }) => [
             styles.submitBtn,
-            { opacity: pressed || isSubmitting ? 0.85 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
+            { opacity: pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
           ]}
         >
           <LinearGradient colors={[C.tintLight, C.tint]} style={styles.submitBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-            {isSubmitting ? (
-              <Text style={styles.submitBtnText}>Posting...</Text>
-            ) : (
-              <>
-                <Ionicons name="leaf" size={18} color="#fff" />
-                <Text style={styles.submitBtnText}>Post Listing</Text>
-              </>
-            )}
+            <Feather name="arrow-right" size={18} color="#fff" />
+            <Text style={styles.submitBtnText}>Next: Confirm Drop-Off</Text>
           </LinearGradient>
         </Pressable>
       </View>
@@ -363,4 +489,23 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   submitBtnText: { fontFamily: "Inter_700Bold", fontSize: 17, color: "#fff" },
+  dropoffHero: { alignItems: "center", paddingHorizontal: 8, gap: 14, paddingTop: 8, paddingBottom: 4 },
+  dropoffIconCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: C.tint + "14", alignItems: "center", justifyContent: "center" },
+  dropoffTitle: { fontFamily: "Inter_700Bold", fontSize: 22, color: C.text, textAlign: "center", letterSpacing: -0.3 },
+  dropoffSub: { fontFamily: "Inter_400Regular", fontSize: 14, color: C.textSecondary, textAlign: "center", lineHeight: 21 },
+  timestampBanner: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: C.accent + "12", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: C.accent + "22" },
+  timestampText: { fontFamily: "Inter_500Medium", fontSize: 13, color: C.accent },
+  dropoffPhotoArea: { borderRadius: 20, overflow: "hidden", height: 220, backgroundColor: C.surface, borderWidth: 2, borderColor: C.cardBorder, borderStyle: "dashed" },
+  dropoffPhotoPreview: { width: "100%", height: "100%" },
+  dropoffPhotoEmpty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
+  dropoffPhotoEmptyTitle: { fontFamily: "Inter_600SemiBold", fontSize: 16, color: C.text },
+  dropoffPhotoEmptySubtext: { fontFamily: "Inter_400Regular", fontSize: 13, color: C.textMuted },
+  dropoffInfo: { backgroundColor: C.surface, borderRadius: 16, padding: 16, gap: 10, borderWidth: 1, borderColor: C.cardBorder },
+  dropoffInfoRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  dropoffInfoText: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 14, color: C.textSecondary },
+  bold: { fontFamily: "Inter_600SemiBold", color: C.text },
+  dropoffNote: { flexDirection: "row", gap: 10, alignItems: "flex-start", backgroundColor: C.creamDark, borderRadius: 12, padding: 14 },
+  dropoffNoteText: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 12, color: C.textSecondary, lineHeight: 18 },
+  skipDropoff: { alignItems: "center", paddingVertical: 10 },
+  skipDropoffText: { fontFamily: "Inter_400Regular", fontSize: 14, color: C.textMuted },
 });

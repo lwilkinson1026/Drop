@@ -260,7 +260,7 @@ export default function OnboardingScreen() {
               <Text style={styles.btnText}>
                 {step === "welcome" ? "Get started" :
                  step === "how-it-works" ? (isLastSlide ? "Let's go" : "Next") :
-                 step === "all-done" ? "Enter HarvestSwap" :
+                 step === "all-done" ? "Enter Drop" :
                  step === "maker-drop-location" ? "Confirm my location" :
                  "Continue"}
               </Text>
@@ -287,7 +287,7 @@ function WelcomeStep() {
       <View style={styles.logoCircle}>
         <Ionicons name="leaf" size={52} color={C.tint} />
       </View>
-      <Text style={styles.appName}>HarvestSwap</Text>
+      <Text style={styles.appName}>Drop</Text>
       <Text style={styles.tagline}>A rural food-swap network. Fresh from the farm, straight to your hands.</Text>
       <View style={styles.featureList}>
         {[
@@ -398,7 +398,7 @@ function LocationStep() {
         <Ionicons name="location-outline" size={30} color="rgba(255,255,255,0.8)" />
       </View>
       <Text style={styles.stepTitle}>Your community</Text>
-      <Text style={styles.stepSubtitle}>HarvestSwap is live in Yakima, WA. More cities coming soon.</Text>
+      <Text style={styles.stepSubtitle}>Drop is live in Yakima, WA. More cities coming soon.</Text>
       <View style={styles.cityCard}>
         <View style={styles.cityCardLeft}>
           <Ionicons name="leaf" size={20} color={C.tint} />
@@ -413,7 +413,7 @@ function LocationStep() {
       </View>
       <View style={styles.comingSoonBox}>
         <Feather name="map" size={14} color="rgba(255,255,255,0.5)" />
-        <Text style={styles.comingSoonText}>More cities launching soon — invite your neighbors to grow HarvestSwap!</Text>
+        <Text style={styles.comingSoonText}>More cities launching soon — invite your neighbors to grow Drop!</Text>
       </View>
     </View>
   );
@@ -563,8 +563,8 @@ function AllDoneStep({ role, name }: { role: "maker" | "buyer"; name: string }) 
       <Text style={styles.appName}>You're all set!</Text>
       <Text style={styles.tagline}>
         {role === "maker"
-          ? `Welcome to HarvestSwap, ${name.split(" ")[0]}! Your swap box is ready. Start posting your first harvest.`
-          : `Welcome to HarvestSwap, ${name.split(" ")[0]}! You have 20 credits to start exploring fresh local produce.`}
+          ? `Welcome to Drop, ${name.split(" ")[0]}! Your swap box is ready. Start posting your first harvest.`
+          : `Welcome to Drop, ${name.split(" ")[0]}! You have 20 credits to start exploring fresh local produce.`}
       </Text>
       <View style={styles.featureList}>
         {(role === "maker"

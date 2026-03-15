@@ -65,7 +65,7 @@ export default function SignInScreen() {
           <View style={styles.logoCircle}>
             <Ionicons name="leaf" size={52} color={C.tint} />
           </View>
-          <Text style={styles.appName}>HarvestSwap</Text>
+          <Text style={styles.appName}>Drop</Text>
           <Text style={styles.tagline}>Authentication is being configured.</Text>
           <View style={styles.warningBox}>
             <Feather name="alert-triangle" size={16} color={C.tint} />
@@ -84,7 +84,7 @@ export default function SignInScreen() {
         <View style={styles.logoCircle}>
           <Ionicons name="leaf" size={52} color={C.tint} />
         </View>
-        <Text style={styles.appName}>HarvestSwap</Text>
+        <Text style={styles.appName}>Drop</Text>
         <Text style={styles.tagline}>
           Fresh food from your neighbors, straight to your hands.
         </Text>

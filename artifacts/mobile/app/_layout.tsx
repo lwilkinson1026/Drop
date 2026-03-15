@@ -40,6 +40,10 @@ function RootLayoutNav() {
         name="qr/[id]"
         options={{ headerShown: false, presentation: "modal", animation: "slide_from_bottom" }}
       />
+      <Stack.Screen
+        name="review/[listingId]"
+        options={{ headerShown: false, presentation: "modal", animation: "slide_from_bottom" }}
+      />
     </Stack>
   );
 }

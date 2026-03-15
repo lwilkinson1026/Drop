@@ -187,7 +187,7 @@ export default function AddLocationScreen() {
               style={[styles.input, styles.textArea]}
               value={description}
               onChangeText={setDescription}
-              placeholder="e.g. Green wooden box near the entrance of the park. Look for the HarvestSwap sign."
+              placeholder="e.g. Green wooden box near the entrance of the park. Look for the Drop sign."
               placeholderTextColor={C.textMuted}
               multiline
               numberOfLines={4}

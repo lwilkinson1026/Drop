@@ -224,14 +224,14 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>More</Text>
         <Pressable
-          onPress={() => { Haptics.selectionAsync(); Alert.alert("About HarvestSwap", "A rural food-swap network connecting makers and buyers in your community.\n\nVersion 1.0 · Yakima, WA"); }}
+          onPress={() => { Haptics.selectionAsync(); Alert.alert("About Drop", "A rural food-swap network connecting makers and buyers in your community.\n\nVersion 1.0 · Yakima, WA"); }}
           style={({ pressed }) => [styles.menuItem, { opacity: pressed ? 0.85 : 1 }]}
         >
           <View style={[styles.menuIcon, { backgroundColor: C.accent + "18" }]}>
             <Ionicons name="information-circle" size={18} color={C.accent} />
           </View>
           <View style={styles.menuLabel}>
-            <Text style={styles.menuTitle}>About HarvestSwap</Text>
+            <Text style={styles.menuTitle}>About Drop</Text>
             <Text style={styles.menuSubtitle}>Version 1.0 · Yakima, WA</Text>
           </View>
           <Feather name="chevron-right" size={16} color={C.textMuted} />

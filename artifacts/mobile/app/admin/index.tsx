@@ -17,13 +17,26 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
+import StarRating from "@/components/StarRating";
 
 const C = Colors.light;
 
 export default function AdminScreen() {
   const insets = useSafeAreaInsets();
-  const { dropLocations, removeDropLocation, listings } = useApp();
+  const { dropLocations, removeDropLocation, listings, reviews, getUserRating, suspendedUserIds, toggleSuspendUser } = useApp();
   const { authUser } = useAuth();
+
+  const flaggedUsers = (() => {
+    const userIds = [...new Set(reviews.map((r) => r.revieweeId))];
+    return userIds
+      .map((uid) => {
+        const rating = getUserRating(uid);
+        const nameFromReview = reviews.find((r) => r.revieweeId === uid)?.revieweeName ?? uid;
+        return { uid, name: nameFromReview, ...rating };
+      })
+      .filter((u) => u.count >= 2 && u.average < 3.5)
+      .sort((a, b) => a.average - b.average);
+  })();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
@@ -136,6 +149,47 @@ export default function AdminScreen() {
             ))}
           </View>
         </View>
+
+        {flaggedUsers.length > 0 && (
+          <View style={styles.flaggedSection}>
+            <View style={styles.flaggedHeader}>
+              <Ionicons name="warning" size={18} color={C.error ?? "#C0392B"} />
+              <Text style={styles.sectionTitle}>Flagged Members</Text>
+              <View style={styles.flagCount}><Text style={styles.flagCountText}>{flaggedUsers.length}</Text></View>
+            </View>
+            <Text style={styles.flaggedSubtitle}>Users with rating below 3.5 and 2+ reviews. Consider suspending access.</Text>
+            <View style={{ gap: 10 }}>
+              {flaggedUsers.map((u) => {
+                const isSuspended = suspendedUserIds.includes(u.uid);
+                return (
+                  <View key={u.uid} style={[styles.flaggedCard, isSuspended && styles.flaggedCardSuspended]}>
+                    <View style={styles.flaggedAvatar}>
+                      <Text style={styles.flaggedAvatarText}>{u.name.charAt(0).toUpperCase()}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.flaggedName}>{u.name}</Text>
+                      <View style={styles.flaggedRatingRow}>
+                        <StarRating rating={u.average} size={12} />
+                        <Text style={styles.flaggedRatingText}>{u.average.toFixed(1)} · {u.count} reviews</Text>
+                      </View>
+                    </View>
+                    <Pressable
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        toggleSuspendUser(u.uid);
+                      }}
+                      style={[styles.suspendBtn, isSuspended && styles.unsuspendBtn]}
+                    >
+                      <Text style={[styles.suspendBtnText, isSuspended && styles.unsuspendBtnText]}>
+                        {isSuspended ? "Unsuspend" : "Suspend"}
+                      </Text>
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
       </ScrollView>
 
       <View style={[styles.fab]}>
@@ -274,4 +328,20 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   fabText: { fontFamily: "Inter_700Bold", fontSize: 16, color: "#fff" },
+  flaggedSection: { marginTop: 24, paddingHorizontal: 20, gap: 12, paddingBottom: 8 },
+  flaggedHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
+  flagCount: { backgroundColor: "#C0392B22", borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 },
+  flagCountText: { fontFamily: "Inter_700Bold", fontSize: 12, color: "#C0392B" },
+  flaggedSubtitle: { fontFamily: "Inter_400Regular", fontSize: 13, color: C.textSecondary, lineHeight: 18 },
+  flaggedCard: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: C.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: "#C0392B22" },
+  flaggedCardSuspended: { opacity: 0.55 },
+  flaggedAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#C0392B22", alignItems: "center", justifyContent: "center" },
+  flaggedAvatarText: { fontFamily: "Inter_700Bold", fontSize: 16, color: "#C0392B" },
+  flaggedName: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: C.text },
+  flaggedRatingRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 },
+  flaggedRatingText: { fontFamily: "Inter_400Regular", fontSize: 12, color: C.textSecondary },
+  suspendBtn: { backgroundColor: "#C0392B", paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10 },
+  suspendBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: "#fff" },
+  unsuspendBtn: { backgroundColor: C.creamDark ?? "#EDE8E0", borderWidth: 1, borderColor: C.cardBorder },
+  unsuspendBtnText: { color: C.text },
 });

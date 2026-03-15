@@ -22,6 +22,15 @@ const C = Colors.light;
 const { width } = Dimensions.get("window");
 const QR_SIZE = width * 0.62;
 
+function formatTimestamp(ts: number): string {
+  return new Date(ts).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export default function QRScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
@@ -34,6 +43,7 @@ export default function QRScreen() {
   const listing = listings.find((l) => l.id === id);
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
+  const pickupTs = listing?.pickupTimestamp ?? Date.now();
 
   useEffect(() => {
     Animated.loop(
@@ -42,7 +52,6 @@ export default function QRScreen() {
         Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
       ])
     ).start();
-
     Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
   }, []);
 
@@ -60,7 +69,7 @@ export default function QRScreen() {
   };
 
   const qrValue = JSON.stringify({
-    app: "HarvestSwap",
+    app: "Drop",
     listingId: id,
     listingTitle: listing?.title,
     location: listing?.boxLocation?.address,
@@ -69,7 +78,12 @@ export default function QRScreen() {
   });
 
   return (
-    <LinearGradient colors={[C.accent, "#162A14", "#0E1A0C"]} style={styles.container} start={{ x: 0, y: 0 }} end={{ x: 0.3, y: 1 }}>
+    <LinearGradient
+      colors={[C.accent, "#162A14", "#0E1A0C"]}
+      style={styles.container}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0.3, y: 1 }}
+    >
       <Animated.View style={[styles.inner, { opacity: fadeAnim }]}>
         <View style={[styles.header, { paddingTop: topPad + 8 }]}>
           <Pressable onPress={() => router.replace("/(tabs)")} style={styles.closeBtn}>
@@ -85,7 +99,9 @@ export default function QRScreen() {
             </Text>
           </View>
           <Text style={styles.title}>{listing?.title ?? "Your item"}</Text>
-          <Text style={styles.subtitle}>{listing?.boxLocation?.address ?? "See the box location"}</Text>
+          <Text style={styles.subtitle}>
+            {listing?.boxLocation?.address ?? "See the box location"}
+          </Text>
         </View>
 
         <View style={styles.qrSection}>
@@ -95,7 +111,12 @@ export default function QRScreen() {
                 styles.unlockContainer,
                 {
                   transform: [
-                    { scale: unlockAnim.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) },
+                    {
+                      scale: unlockAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.4, 1],
+                      }),
+                    },
                   ],
                   opacity: unlockAnim,
                 },
@@ -110,61 +131,80 @@ export default function QRScreen() {
                 <Ionicons name="lock-open" size={72} color={C.tintLight} />
               </LinearGradient>
               <Text style={styles.unlockTitle}>Door is open</Text>
-              <Text style={styles.unlockSubtitle}>Collect your items and close the box when done.</Text>
+              <Text style={styles.unlockSubtitle}>
+                Retrieve your items and close the box securely.
+              </Text>
+              <View style={styles.pickupTimestampBadge}>
+                <Feather name="clock" size={13} color={C.tint} />
+                <Text style={styles.pickupTimestampText}>
+                  Picked up {formatTimestamp(pickupTs)}
+                </Text>
+              </View>
             </Animated.View>
           ) : (
-            <Animated.View style={[styles.qrWrapper, { transform: [{ scale: pulseAnim }] }]}>
-              <View style={styles.qrCard}>
+            <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+              <View style={styles.qrWrapper}>
                 <QRCode
                   value={qrValue}
                   size={QR_SIZE}
-                  color={C.text}
-                  backgroundColor={C.surface}
-                  enableLinearGradient={false}
+                  color="#1A1208"
+                  backgroundColor="#F7F2EA"
                 />
-                <View style={styles.qrCornerTL} />
-                <View style={styles.qrCornerTR} />
-                <View style={styles.qrCornerBL} />
-                <View style={styles.qrCornerBR} />
               </View>
-              <Text style={styles.qrInstructions}>Scan this QR at the swap box to unlock</Text>
             </Animated.View>
           )}
         </View>
 
-        <View style={[styles.bottomSection, { paddingBottom: bottomPad + 24 }]}>
-          {!unlocked && (
-            <Pressable
-              onPress={handleSimulateUnlock}
-              style={({ pressed }) => [styles.simulateBtn, { opacity: pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] }]}
-            >
-              <LinearGradient
-                colors={[C.tintLight, C.tint]}
-                style={styles.simulateBtnGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
+        <View style={[styles.bottomSection, { paddingBottom: bottomPad + 12 }]}>
+          {!unlocked ? (
+            <>
+              <Pressable
+                onPress={handleSimulateUnlock}
+                style={({ pressed }) => [{ opacity: pressed ? 0.88 : 1 }]}
               >
-                <Ionicons name="lock-open-outline" size={18} color="#fff" />
-                <Text style={styles.simulateBtnText}>Simulate Box Unlock</Text>
-              </LinearGradient>
-            </Pressable>
+                <LinearGradient
+                  colors={[C.tintLight, C.tint]}
+                  style={styles.actionBtnGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  <Ionicons name="lock-open-outline" size={20} color="#fff" />
+                  <Text style={styles.actionBtnText}>Simulate Box Unlock</Text>
+                </LinearGradient>
+              </Pressable>
+              <View style={styles.creditInfo}>
+                <Ionicons name="leaf" size={13} color="rgba(255,255,255,0.45)" />
+                <Text style={styles.creditInfoText}>
+                  {listing?.creditCost ?? 0} credits used · scan QR at box
+                </Text>
+              </View>
+            </>
+          ) : (
+            <>
+              <Pressable
+                onPress={() =>
+                  router.push({
+                    pathname: "/review/[listingId]",
+                    params: { listingId: id, type: "buyer-reviews-maker" },
+                  })
+                }
+                style={({ pressed }) => [{ opacity: pressed ? 0.88 : 1 }]}
+              >
+                <LinearGradient
+                  colors={[C.tintLight, C.tint]}
+                  style={styles.actionBtnGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  <Ionicons name="star" size={18} color="#fff" />
+                  <Text style={styles.actionBtnText}>Rate this Drop</Text>
+                </LinearGradient>
+              </Pressable>
+              <Pressable onPress={() => router.replace("/(tabs)")} style={styles.doneBtn}>
+                <Text style={styles.doneBtnText}>Back to listings</Text>
+              </Pressable>
+            </>
           )}
-
-          {unlocked && (
-            <Pressable
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.replace("/(tabs)"); }}
-              style={({ pressed }) => [styles.doneBtn, { opacity: pressed ? 0.85 : 1 }]}
-            >
-              <Text style={styles.doneBtnText}>Done</Text>
-            </Pressable>
-          )}
-
-          <View style={styles.creditInfo}>
-            <Ionicons name="leaf" size={14} color="rgba(255,255,255,0.5)" />
-            <Text style={styles.creditInfoText}>
-              {listing?.creditCost} credits deducted from your balance
-            </Text>
-          </View>
         </View>
       </Animated.View>
     </LinearGradient>
@@ -174,141 +214,26 @@ export default function QRScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   inner: { flex: 1 },
-  header: {
-    paddingHorizontal: 24,
-    paddingBottom: 8,
-    flexDirection: "row",
-    justifyContent: "flex-end",
-  },
-  closeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  topSection: { paddingHorizontal: 32, paddingBottom: 32, gap: 8 },
-  successBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "rgba(212,130,42,0.2)",
-    alignSelf: "flex-start",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginBottom: 4,
-  },
-  successText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: C.tintLight },
-  title: { fontFamily: "Inter_700Bold", fontSize: 24, color: "#fff", letterSpacing: -0.4, lineHeight: 30 },
-  subtitle: { fontFamily: "Inter_400Regular", fontSize: 14, color: "rgba(255,255,255,0.6)" },
-  qrSection: { flex: 1, alignItems: "center", justifyContent: "center" },
-  qrWrapper: { alignItems: "center", gap: 20 },
-  qrCard: {
-    backgroundColor: C.surface,
-    borderRadius: 24,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.35,
-    shadowRadius: 24,
-    elevation: 12,
-    position: "relative",
-  },
-  qrCornerTL: {
-    position: "absolute",
-    top: 10,
-    left: 10,
-    width: 20,
-    height: 20,
-    borderTopWidth: 3,
-    borderLeftWidth: 3,
-    borderColor: C.tint,
-    borderTopLeftRadius: 4,
-  },
-  qrCornerTR: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    width: 20,
-    height: 20,
-    borderTopWidth: 3,
-    borderRightWidth: 3,
-    borderColor: C.tint,
-    borderTopRightRadius: 4,
-  },
-  qrCornerBL: {
-    position: "absolute",
-    bottom: 10,
-    left: 10,
-    width: 20,
-    height: 20,
-    borderBottomWidth: 3,
-    borderLeftWidth: 3,
-    borderColor: C.tint,
-    borderBottomLeftRadius: 4,
-  },
-  qrCornerBR: {
-    position: "absolute",
-    bottom: 10,
-    right: 10,
-    width: 20,
-    height: 20,
-    borderBottomWidth: 3,
-    borderRightWidth: 3,
-    borderColor: C.tint,
-    borderBottomRightRadius: 4,
-  },
-  qrInstructions: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 14,
-    color: "rgba(255,255,255,0.65)",
-    textAlign: "center",
-    maxWidth: 260,
-    lineHeight: 21,
-  },
+  header: { paddingHorizontal: 20, paddingBottom: 8, flexDirection: "row", alignItems: "center" },
+  closeBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center" },
+  topSection: { paddingHorizontal: 28, paddingBottom: 24, gap: 8, alignItems: "center" },
+  successBadge: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "rgba(255,255,255,0.1)", paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20 },
+  successText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: C.tintLight },
+  title: { fontFamily: "Inter_700Bold", fontSize: 24, color: "#fff", letterSpacing: -0.5, textAlign: "center" },
+  subtitle: { fontFamily: "Inter_400Regular", fontSize: 14, color: "rgba(255,255,255,0.55)", textAlign: "center", maxWidth: 260, lineHeight: 21 },
+  qrSection: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 },
+  qrWrapper: { backgroundColor: "#F7F2EA", padding: 20, borderRadius: 24 },
   unlockContainer: { alignItems: "center", gap: 20, paddingHorizontal: 32 },
-  unlockCircle: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: C.tint + "44",
-  },
+  unlockCircle: { width: 160, height: 160, borderRadius: 80, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: C.tint + "44" },
   unlockTitle: { fontFamily: "Inter_700Bold", fontSize: 28, color: "#fff", letterSpacing: -0.5 },
-  unlockSubtitle: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 15,
-    color: "rgba(255,255,255,0.65)",
-    textAlign: "center",
-    lineHeight: 22,
-  },
-  bottomSection: { paddingHorizontal: 24, paddingTop: 16, gap: 16 },
-  simulateBtn: {},
-  simulateBtnGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    paddingVertical: 18,
-    borderRadius: 16,
-  },
-  simulateBtnText: { fontFamily: "Inter_700Bold", fontSize: 16, color: "#fff" },
-  doneBtn: {
-    backgroundColor: "rgba(255,255,255,0.15)",
-    paddingVertical: 18,
-    borderRadius: 16,
-    alignItems: "center",
-  },
-  doneBtnText: { fontFamily: "Inter_700Bold", fontSize: 16, color: "#fff" },
-  creditInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-  },
+  unlockSubtitle: { fontFamily: "Inter_400Regular", fontSize: 15, color: "rgba(255,255,255,0.65)", textAlign: "center", lineHeight: 22 },
+  pickupTimestampBadge: { flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: "rgba(212,130,42,0.15)", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: "rgba(212,130,42,0.25)" },
+  pickupTimestampText: { fontFamily: "Inter_500Medium", fontSize: 13, color: C.tint },
+  bottomSection: { paddingHorizontal: 24, paddingTop: 16, gap: 14 },
+  actionBtnGradient: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 18, borderRadius: 16 },
+  actionBtnText: { fontFamily: "Inter_700Bold", fontSize: 16, color: "#fff" },
+  doneBtn: { backgroundColor: "rgba(255,255,255,0.12)", paddingVertical: 17, borderRadius: 16, alignItems: "center" },
+  doneBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 16, color: "rgba(255,255,255,0.8)" },
+  creditInfo: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
   creditInfoText: { fontFamily: "Inter_400Regular", fontSize: 13, color: "rgba(255,255,255,0.45)" },
 });

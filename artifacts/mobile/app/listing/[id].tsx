@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
 import { useApp } from "@/context/AppContext";
+import StarRating from "@/components/StarRating";
 
 const C = Colors.light;
 const { width } = Dimensions.get("window");
@@ -63,6 +64,9 @@ export default function ListingDetailScreen() {
 
   const isOwner = user?.id === listing.makerId;
   const canClaim = !isOwner && listing.available && user && user.creditBalance >= listing.creditCost;
+  const { getUserRating, getReviewsForUser } = useApp();
+  const makerRating = getUserRating(listing.makerId);
+  const makerReviews = getReviewsForUser(listing.makerId);
   const catColor = CATEGORY_COLORS[listing.category] || C.tint;
 
   const handleClaim = async () => {
@@ -192,13 +196,90 @@ export default function ListingDetailScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.makerName}>{listing.makerName}</Text>
-                <Text style={styles.makerRole}>Local Maker</Text>
+                {makerRating.count > 0 ? (
+                  <View style={styles.ratingRow}>
+                    <StarRating rating={makerRating.average} size={13} />
+                    <Text style={styles.ratingText}>
+                      {makerRating.average.toFixed(1)} ({makerRating.count} review{makerRating.count !== 1 ? "s" : ""})
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={styles.makerRole}>No reviews yet</Text>
+                )}
               </View>
               <View style={styles.makerVerified}>
                 <Feather name="check" size={12} color={C.success} />
                 <Text style={styles.makerVerifiedText}>Active</Text>
               </View>
             </View>
+            {makerReviews.length > 0 && (
+              <View style={styles.reviewsPreview}>
+                {makerReviews.slice(0, 2).map((r) => (
+                  <View key={r.id} style={styles.reviewCard}>
+                    <View style={styles.reviewHeader}>
+                      <Text style={styles.reviewerName}>{r.reviewerName}</Text>
+                      <StarRating rating={r.rating} size={12} />
+                    </View>
+                    {r.comment ? <Text style={styles.reviewComment} numberOfLines={2}>{r.comment}</Text> : null}
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+
+          <View style={styles.timestampSection}>
+            <Text style={styles.sectionTitle}>Drop & Pickup Log</Text>
+            <View style={styles.timestampCard}>
+              <View style={styles.timestampRow}>
+                <View style={[styles.tsIcon, { backgroundColor: C.tint + "14" }]}>
+                  <Feather name="package" size={15} color={C.tint} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.tsLabel}>Dropped off</Text>
+                  <Text style={styles.tsValue}>
+                    {listing.dropOffTimestamp
+                      ? new Date(listing.dropOffTimestamp).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+                      : "Recently posted"}
+                  </Text>
+                </View>
+                {listing.dropOffTimestamp && (
+                  <View style={styles.tsBadge}>
+                    <Feather name="camera" size={11} color={C.textSecondary} />
+                    <Text style={styles.tsBadgeText}>Verified</Text>
+                  </View>
+                )}
+              </View>
+
+              {!listing.available && listing.pickupTimestamp && (
+                <>
+                  <View style={styles.tsLine} />
+                  <View style={styles.timestampRow}>
+                    <View style={[styles.tsIcon, { backgroundColor: C.success + "14" }]}>
+                      <Feather name="check-circle" size={15} color={C.success} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.tsLabel}>Picked up</Text>
+                      <Text style={styles.tsValue}>
+                        {new Date(listing.pickupTimestamp).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      </Text>
+                    </View>
+                    {listing.pickupBuyerName && (
+                      <Text style={styles.tsBuyerName} numberOfLines={1}>{listing.pickupBuyerName}</Text>
+                    )}
+                  </View>
+                </>
+              )}
+            </View>
+
+            {listing.dropOffPhotoUri && (
+              <Pressable style={styles.dropoffPhotoContainer} onPress={() => {}}>
+                <Image source={{ uri: listing.dropOffPhotoUri }} style={styles.dropoffPhoto} contentFit="cover" />
+                <View style={styles.dropoffPhotoBadge}>
+                  <Feather name="camera" size={11} color="#fff" />
+                  <Text style={styles.dropoffPhotoBadgeText}>Drop-off photo</Text>
+                </View>
+              </Pressable>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -334,6 +415,27 @@ const styles = StyleSheet.create({
   makerRole: { fontFamily: "Inter_400Regular", fontSize: 12, color: C.textSecondary },
   makerVerified: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: C.success + "18", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
   makerVerifiedText: { fontFamily: "Inter_500Medium", fontSize: 11, color: C.success },
+  ratingRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 2 },
+  ratingText: { fontFamily: "Inter_400Regular", fontSize: 12, color: C.textSecondary },
+  reviewsPreview: { marginTop: 10, gap: 8 },
+  reviewCard: { backgroundColor: C.creamDark, borderRadius: 12, padding: 12, gap: 5 },
+  reviewHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  reviewerName: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: C.text },
+  reviewComment: { fontFamily: "Inter_400Regular", fontSize: 13, color: C.textSecondary, lineHeight: 18 },
+  timestampSection: { marginBottom: 24 },
+  timestampCard: { backgroundColor: C.surface, borderRadius: 16, padding: 14, gap: 12, borderWidth: 1, borderColor: C.cardBorder },
+  timestampRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  tsIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  tsLabel: { fontFamily: "Inter_400Regular", fontSize: 12, color: C.textSecondary },
+  tsValue: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: C.text, marginTop: 1 },
+  tsBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: C.creamDark, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 },
+  tsBadgeText: { fontFamily: "Inter_400Regular", fontSize: 11, color: C.textSecondary },
+  tsBuyerName: { fontFamily: "Inter_400Regular", fontSize: 12, color: C.textSecondary, maxWidth: 80 },
+  tsLine: { height: 1, backgroundColor: C.cardBorder, marginLeft: 46 },
+  dropoffPhotoContainer: { marginTop: 10, borderRadius: 14, overflow: "hidden", height: 160 },
+  dropoffPhoto: { width: "100%", height: "100%" },
+  dropoffPhotoBadge: { position: "absolute", bottom: 8, left: 8, flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(0,0,0,0.55)", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
+  dropoffPhotoBadgeText: { fontFamily: "Inter_500Medium", fontSize: 12, color: "#fff" },
   notFound: { fontFamily: "Inter_600SemiBold", fontSize: 18, color: C.text, marginTop: 12 },
   backBtn: { marginTop: 16, backgroundColor: C.text, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
   backBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: C.surface },

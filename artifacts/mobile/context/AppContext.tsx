@@ -26,6 +26,20 @@ export interface User {
   location?: { lat: number; lng: number };
 }
 
+export interface Review {
+  id: string;
+  listingId: string;
+  listingTitle: string;
+  reviewerId: string;
+  reviewerName: string;
+  revieweeId: string;
+  revieweeName: string;
+  rating: number;
+  comment: string;
+  timestamp: number;
+  type: "buyer-reviews-maker" | "maker-reviews-buyer";
+}
+
 export interface ListingItem {
   id: string;
   makerId: string;
@@ -33,6 +47,11 @@ export interface ListingItem {
   title: string;
   description: string;
   photoUri: string | null;
+  dropOffPhotoUri?: string | null;
+  dropOffTimestamp?: number;
+  pickupTimestamp?: number;
+  pickupBuyerId?: string;
+  pickupBuyerName?: string;
   boxLocation: {
     lat: number;
     lng: number;
@@ -66,7 +85,9 @@ interface AppContextValue {
   user: User | null;
   listings: ListingItem[];
   transactions: Transaction[];
+  reviews: Review[];
   dropLocations: ManagedDropLocation[];
+  suspendedUserIds: string[];
   isLoading: boolean;
   setUser: (u: User | null) => void;
   addListing: (l: Omit<ListingItem, "id" | "timestamp">) => Promise<void>;
@@ -75,15 +96,22 @@ interface AppContextValue {
   refreshListings: () => Promise<void>;
   addDropLocation: (loc: Omit<DropLocation, "id">) => Promise<void>;
   removeDropLocation: (id: string) => Promise<void>;
+  addReview: (review: Omit<Review, "id" | "timestamp">) => Promise<void>;
+  getReviewsForUser: (userId: string) => Review[];
+  getUserRating: (userId: string) => { average: number; count: number };
+  hasReviewed: (listingId: string, reviewerId: string, type: Review["type"]) => boolean;
+  toggleSuspendUser: (userId: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
 
 const STORAGE_KEYS = {
-  user: "harvestswap_user",
-  listings: "harvestswap_listings",
-  transactions: "harvestswap_transactions",
-  customLocations: "harvestswap_custom_locations",
+  user: "drop_user",
+  listings: "drop_listings",
+  transactions: "drop_transactions",
+  customLocations: "drop_custom_locations",
+  reviews: "drop_reviews",
+  suspendedUsers: "drop_suspended_users",
 };
 
 const LYNCH_LANE = {
@@ -106,6 +134,7 @@ const DEMO_LISTINGS: ListingItem[] = [
     title: "Fresh Heirloom Tomatoes",
     description: "Sun-ripened Cherokee Purple and Brandywine tomatoes. Picked this morning.",
     photoUri: null,
+    dropOffTimestamp: Date.now() - 3600000,
     boxLocation: { ...LYNCH_LANE },
     quantity: 8,
     unit: "lbs",
@@ -121,6 +150,7 @@ const DEMO_LISTINGS: ListingItem[] = [
     title: "Duck Eggs (dozen)",
     description: "Free-range Khaki Campbell duck eggs. Rich golden yolks.",
     photoUri: null,
+    dropOffTimestamp: Date.now() - 7200000,
     boxLocation: { ...LYNCH_LANE },
     quantity: 2,
     unit: "dozen",
@@ -136,6 +166,7 @@ const DEMO_LISTINGS: ListingItem[] = [
     title: "Fresh Basil Bunches",
     description: "Sweet Genovese basil, just cut. Perfect for pesto.",
     photoUri: null,
+    dropOffTimestamp: Date.now() - 1800000,
     boxLocation: { ...LYNCH_LANE },
     quantity: 12,
     unit: "bunches",
@@ -151,6 +182,7 @@ const DEMO_LISTINGS: ListingItem[] = [
     title: "Seckel Pears",
     description: "Small but intensely sweet. Great for snacking or preserves.",
     photoUri: null,
+    dropOffTimestamp: Date.now() - 5400000,
     boxLocation: { ...LYNCH_LANE },
     quantity: 5,
     unit: "lbs",
@@ -166,6 +198,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [listings, setListings] = useState<ListingItem[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [customLocations, setCustomLocations] = useState<ManagedDropLocation[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [suspendedUserIds, setSuspendedUserIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -174,25 +208,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const loadData = async () => {
     try {
-      const [rawUser, rawListings, rawTx, rawLocs] = await Promise.all([
+      const [rawUser, rawListings, rawTx, rawLocs, rawReviews, rawSuspended] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.user),
         AsyncStorage.getItem(STORAGE_KEYS.listings),
         AsyncStorage.getItem(STORAGE_KEYS.transactions),
         AsyncStorage.getItem(STORAGE_KEYS.customLocations),
+        AsyncStorage.getItem(STORAGE_KEYS.reviews),
+        AsyncStorage.getItem(STORAGE_KEYS.suspendedUsers),
       ]);
-
       if (rawUser) setUserState(JSON.parse(rawUser));
-
       const stored = rawListings ? JSON.parse(rawListings) : [];
       const merged = [
         ...DEMO_LISTINGS,
         ...stored.filter((s: ListingItem) => !DEMO_LISTINGS.find((d) => d.id === s.id)),
       ];
       setListings(merged);
-
       if (rawTx) setTransactions(JSON.parse(rawTx));
       if (rawLocs) setCustomLocations(JSON.parse(rawLocs));
-    } catch (e) {
+      if (rawReviews) setReviews(JSON.parse(rawReviews));
+      if (rawSuspended) setSuspendedUserIds(JSON.parse(rawSuspended));
+    } catch {
       setListings(DEMO_LISTINGS);
     } finally {
       setIsLoading(false);
@@ -206,11 +241,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const setUser = useCallback(async (u: User | null) => {
     setUserState(u);
-    if (u) {
-      await AsyncStorage.setItem(STORAGE_KEYS.user, JSON.stringify(u));
-    } else {
-      await AsyncStorage.removeItem(STORAGE_KEYS.user);
-    }
+    if (u) await AsyncStorage.setItem(STORAGE_KEYS.user, JSON.stringify(u));
+    else await AsyncStorage.removeItem(STORAGE_KEYS.user);
   }, []);
 
   const addListing = useCallback(
@@ -219,6 +251,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ...l,
         id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
         timestamp: Date.now(),
+        dropOffTimestamp: l.dropOffTimestamp ?? Date.now(),
       };
       const updated = [newItem, ...listings.filter((x) => !DEMO_LISTINGS.find((d) => d.id === x.id))];
       setListings((prev) => [newItem, ...prev]);
@@ -242,6 +275,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (!user) return false;
       if (user.creditBalance < listing.creditCost) return false;
 
+      const pickupTimestamp = Date.now();
+
       const tx: Transaction = {
         id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
         listingId: listing.id,
@@ -249,7 +284,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         buyerId: user.id,
         makerId: listing.makerId,
         credits: listing.creditCost,
-        timestamp: Date.now(),
+        timestamp: pickupTimestamp,
         type: "purchase",
       };
 
@@ -259,7 +294,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       };
 
       const updatedListings = listings.map((l) =>
-        l.id === listing.id ? { ...l, quantity: l.quantity - 1, available: l.quantity - 1 > 0 } : l
+        l.id === listing.id
+          ? {
+              ...l,
+              quantity: l.quantity - 1,
+              available: l.quantity - 1 > 0,
+              pickupTimestamp,
+              pickupBuyerId: user.id,
+              pickupBuyerName: user.name,
+            }
+          : l
       );
 
       const newTxs = [tx, ...transactions];
@@ -309,12 +353,60 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [customLocations]
   );
 
+  const addReview = useCallback(
+    async (review: Omit<Review, "id" | "timestamp">) => {
+      const newReview: Review = {
+        ...review,
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+        timestamp: Date.now(),
+      };
+      const updated = [newReview, ...reviews];
+      setReviews(updated);
+      await AsyncStorage.setItem(STORAGE_KEYS.reviews, JSON.stringify(updated));
+    },
+    [reviews]
+  );
+
+  const getReviewsForUser = useCallback(
+    (userId: string) => reviews.filter((r) => r.revieweeId === userId),
+    [reviews]
+  );
+
+  const getUserRating = useCallback(
+    (userId: string): { average: number; count: number } => {
+      const userReviews = reviews.filter((r) => r.revieweeId === userId);
+      if (userReviews.length === 0) return { average: 0, count: 0 };
+      const sum = userReviews.reduce((acc, r) => acc + r.rating, 0);
+      return { average: sum / userReviews.length, count: userReviews.length };
+    },
+    [reviews]
+  );
+
+  const hasReviewed = useCallback(
+    (listingId: string, reviewerId: string, type: Review["type"]) =>
+      reviews.some((r) => r.listingId === listingId && r.reviewerId === reviewerId && r.type === type),
+    [reviews]
+  );
+
+  const toggleSuspendUser = useCallback(
+    async (userId: string) => {
+      const updated = suspendedUserIds.includes(userId)
+        ? suspendedUserIds.filter((id) => id !== userId)
+        : [...suspendedUserIds, userId];
+      setSuspendedUserIds(updated);
+      await AsyncStorage.setItem(STORAGE_KEYS.suspendedUsers, JSON.stringify(updated));
+    },
+    [suspendedUserIds]
+  );
+
   const value = useMemo(
     () => ({
       user,
       listings,
       transactions,
+      reviews,
       dropLocations,
+      suspendedUserIds,
       isLoading,
       setUser,
       addListing,
@@ -323,8 +415,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       refreshListings,
       addDropLocation,
       removeDropLocation,
+      addReview,
+      getReviewsForUser,
+      getUserRating,
+      hasReviewed,
+      toggleSuspendUser,
     }),
-    [user, listings, transactions, dropLocations, isLoading, setUser, addListing, removeListing, claimListing, refreshListings, addDropLocation, removeDropLocation]
+    [user, listings, transactions, reviews, dropLocations, suspendedUserIds, isLoading, setUser, addListing, removeListing, claimListing, refreshListings, addDropLocation, removeDropLocation, addReview, getReviewsForUser, getUserRating, hasReviewed, toggleSuspendUser]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
