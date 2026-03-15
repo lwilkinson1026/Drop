@@ -2,9 +2,10 @@ import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React from "react";
+import React, { useState } from "react";
 import {
   Alert,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -12,6 +13,7 @@ import {
   Text,
   View,
 } from "react-native";
+import QRCode from "react-native-qrcode-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
@@ -25,6 +27,8 @@ export default function AdminScreen() {
   const insets = useSafeAreaInsets();
   const { dropLocations, removeDropLocation, listings, reviews, getUserRating, suspendedUserIds, toggleSuspendUser } = useApp();
   const { authUser } = useAuth();
+
+  const [boxQrLocation, setBoxQrLocation] = useState<{ id: string; name: string; address: string } | null>(null);
 
   const flaggedUsers = (() => {
     const userIds = [...new Set(reviews.map((r) => r.revieweeId))];
@@ -129,6 +133,16 @@ export default function AdminScreen() {
                 {loc.description ? (
                   <Text style={styles.locDesc}>{loc.description}</Text>
                 ) : null}
+                <Pressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setBoxQrLocation({ id: loc.id, name: loc.name, address: loc.address });
+                  }}
+                  style={({ pressed }) => [styles.boxQrBtn, { opacity: pressed ? 0.75 : 1 }]}
+                >
+                  <Feather name="grid" size={14} color={C.tint} />
+                  <Text style={styles.boxQrBtnText}>Show Box QR</Text>
+                </Pressable>
               </View>
             );
           })}
@@ -191,6 +205,41 @@ export default function AdminScreen() {
           </View>
         )}
       </ScrollView>
+
+      <Modal
+        visible={boxQrLocation !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setBoxQrLocation(null)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setBoxQrLocation(null)}>
+          <Pressable style={styles.modalCard} onPress={() => {}}>
+            <View style={styles.modalHeader}>
+              <MaterialCommunityIcons name="package-variant" size={20} color={C.tint} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalTitle}>{boxQrLocation?.name}</Text>
+                <Text style={styles.modalAddr}>{boxQrLocation?.address}</Text>
+              </View>
+              <Pressable onPress={() => setBoxQrLocation(null)} style={styles.modalClose}>
+                <Feather name="x" size={18} color={C.textSecondary} />
+              </Pressable>
+            </View>
+            <View style={styles.modalQrWrap}>
+              {boxQrLocation && (
+                <QRCode
+                  value={JSON.stringify({ app: "Drop", boxId: boxQrLocation.id, boxName: boxQrLocation.name })}
+                  size={220}
+                  color="#1A1208"
+                  backgroundColor="#F7F2EA"
+                />
+              )}
+            </View>
+            <Text style={styles.modalHint}>
+              Print this QR and stick it on the box.{"\n"}Members scan it to unlock the door.
+            </Text>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <View style={[styles.fab]}>
         <Pressable
@@ -344,4 +393,14 @@ const styles = StyleSheet.create({
   suspendBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: "#fff" },
   unsuspendBtn: { backgroundColor: C.creamDark ?? "#EDE8E0", borderWidth: 1, borderColor: C.cardBorder },
   unsuspendBtnText: { color: C.text },
+  boxQrBtn: { flexDirection: "row", alignItems: "center", gap: 7, alignSelf: "flex-start", backgroundColor: C.tint + "14", paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, marginTop: 10 },
+  boxQrBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: C.tint },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", alignItems: "center", justifyContent: "center", padding: 24 },
+  modalCard: { backgroundColor: C.surface, borderRadius: 24, padding: 24, width: "100%", maxWidth: 360, gap: 20, shadowColor: "#000", shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.25, shadowRadius: 24, elevation: 12 },
+  modalHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
+  modalTitle: { fontFamily: "Inter_700Bold", fontSize: 16, color: C.text },
+  modalAddr: { fontFamily: "Inter_400Regular", fontSize: 13, color: C.textSecondary, marginTop: 2 },
+  modalClose: { width: 34, height: 34, borderRadius: 17, backgroundColor: C.creamDark, alignItems: "center", justifyContent: "center" },
+  modalQrWrap: { alignItems: "center", backgroundColor: "#F7F2EA", borderRadius: 16, padding: 20 },
+  modalHint: { fontFamily: "Inter_400Regular", fontSize: 13, color: C.textSecondary, textAlign: "center", lineHeight: 20 },
 });
