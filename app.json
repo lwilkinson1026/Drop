@@ -1,5 +1,6 @@
 {
   "expo": {
+    "slug": "drop",
     "extra": {
       "eas": {
         "projectId": "045d4d38-2493-4ab5-8357-3c7bec199d68"
