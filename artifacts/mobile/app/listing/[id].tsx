@@ -96,7 +96,7 @@ export default function ListingDetailScreen() {
         return;
       }
 
-      const result = await WebBrowser.openAuthSessionAsync(url, "mobile://payment-result");
+      const result = await WebBrowser.openAuthSessionAsync(url, "drop://payment-result");
 
       if (result.type === "success" && result.url) {
         const params = new URLSearchParams(result.url.split("?")[1] ?? "");

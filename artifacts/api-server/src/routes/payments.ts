@@ -73,7 +73,7 @@ router.get("/payment-return", (req, res) => {
   if (listing_id) params.set("listing_id", listing_id as string);
   if (status) params.set("status", status as string);
 
-  const deepLink = `mobile://payment-result?${params.toString()}`;
+  const deepLink = `drop://payment-result?${params.toString()}`;
 
   res.send(`<!DOCTYPE html>
 <html>

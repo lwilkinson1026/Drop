@@ -39,3 +39,8 @@ yarn-error.*
 .vercel
 
 .env
+
+# EAS / credentials
+google-services-key.json
+google-services.json
+GoogleService-Info.plist

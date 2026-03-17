@@ -1,22 +1,38 @@
 {
   "expo": {
     "name": "Drop",
-    "slug": "mobile",
+    "slug": "drop",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mobile",
+    "scheme": "drop",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#2D5A27"
+      "backgroundColor": "#0C1A0B"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "com.dropapp.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Drop uses your camera to scan QR codes on swap boxes and to take drop-off proof photos.",
+        "NSPhotoLibraryUsageDescription": "Drop uses your photo library to attach photos to your listings.",
+        "NSPhotoLibraryAddUsageDescription": "Drop saves drop-off proof photos to your library.",
+        "NSLocationWhenInUseUsageDescription": "Drop uses your location to show nearby swap boxes on the map."
+      }
     },
-    "android": {},
+    "android": {
+      "package": "com.dropapp.mobile",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ]
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
@@ -24,15 +40,39 @@
       [
         "expo-router",
         {
-          "origin": "https://replit.com/"
+          "origin": "https://dropapp.com"
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Drop uses your camera to scan QR codes on swap boxes and to take drop-off proof photos."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Drop uses your photo library to attach photos to your listings.",
+          "cameraPermission": "Drop uses your camera to take drop-off proof photos."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Drop uses your location to show nearby swap boxes on the map."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "YOUR_EAS_PROJECT_ID"
+      }
     }
   }
 }
